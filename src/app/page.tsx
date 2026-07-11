@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getPurchases, savePurchase, updatePurchaseStatus } from "@/utils/supabaseService";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
@@ -98,6 +99,15 @@ export default function Home() {
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
   const [purchases, setPurchases] = useLocalStorage("maradi_purchases", INITIAL_PURCHASES);
 
+  // Sync purchases with Supabase on mount
+  useEffect(() => {
+    async function syncData() {
+      const dbPurchases = await getPurchases(purchases);
+      setPurchases(dbPurchases);
+    }
+    syncData();
+  }, []);
+
   // Dynamically calculate next PUR ID
   const getNextId = () => {
     if (!purchases || purchases.length === 0) return 1043;
@@ -108,13 +118,14 @@ export default function Home() {
     return Math.max(...ids) + 1;
   };
 
-  // Add new purchase to local storage state
-  const handleSavePurchase = (newPurchase: any) => {
+  // Add new purchase to state and Supabase
+  const handleSavePurchase = async (newPurchase: any) => {
     setPurchases([newPurchase, ...purchases]);
+    await savePurchase(newPurchase);
   };
 
-  // Update status (e.g., when adding freight and recording)
-  const handleUpdatePurchaseStatus = (id: string, newStatus: string, freightAmt: number = 0) => {
+  // Update status and freight in state and Supabase
+  const handleUpdatePurchaseStatus = async (id: string, newStatus: string, freightAmt: number = 0) => {
     setPurchases(
       purchases.map((p: any) => {
         if (p.id === id) {
@@ -127,6 +138,7 @@ export default function Home() {
         return p;
       })
     );
+    await updatePurchaseStatus(id, newStatus, freightAmt);
   };
 
   // Helper to resolve title
