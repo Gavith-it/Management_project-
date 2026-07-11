@@ -2,13 +2,19 @@ import { createClient } from "@supabase/supabase-js";
 
 // Safe fallback credentials for compilation/build phases
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseAnonKey = 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
+  "";
 
 const isConfigured = 
   supabaseUrl && 
   supabaseAnonKey && 
   supabaseUrl !== "your_supabase_project_url" &&
-  supabaseAnonKey !== "your_supabase_anon_public_key";
+  supabaseAnonKey !== "your_supabase_anon_public_key" &&
+  supabaseAnonKey !== "your_supabase_anon_public_key" &&
+  supabaseAnonKey !== "your_supabase_anon_public_key" &&
+  supabaseAnonKey !== "your_supabase_anon_public_key"; // Ensure not placeholder
 
 export const supabase = createClient(
   isConfigured ? supabaseUrl : "https://placeholder-project.supabase.co",
