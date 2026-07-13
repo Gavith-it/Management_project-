@@ -108,6 +108,15 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     }
   };
 
+  const handleItemIdChange = (val: string) => {
+    const upperVal = val.toUpperCase();
+    if (!upperVal.startsWith("RM-")) {
+      setItemId("RM-" + upperVal.replace(/^RM-?/g, ""));
+    } else {
+      setItemId(upperVal);
+    }
+  };
+
   const handleSave = () => {
     // 1. Validation & Sanitation
     const finalVendor = isCustomVendor ? customVendorName.trim() : vendor;
@@ -332,19 +341,22 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
               className="df-input mono"
               placeholder="e.g. ZRI-GLD-001"
               value={itemId}
-              onChange={(e) => setItemId(e.target.value)}
+              onChange={(e) => handleItemIdChange(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="df">
-          <label className="df-label">Invoice no.</label>
-          <input
-            className="df-input mono"
-            placeholder="INV-..."
-            value={invoice}
-            onChange={(e) => setInvoice(e.target.value)}
-          />
+        <div className="df2">
+          <div className="df">
+            <label className="df-label">Invoice no.</label>
+            <input
+              className="df-input mono"
+              placeholder="INV-..."
+              value={invoice}
+              onChange={(e) => setInvoice(e.target.value)}
+            />
+          </div>
+          <div className="df" />
         </div>
 
         <div className="df2">
