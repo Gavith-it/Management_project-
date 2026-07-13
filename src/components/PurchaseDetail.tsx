@@ -131,7 +131,7 @@ export default function PurchaseDetail({ purchase, onBack, onUpdateStatus }: Pur
               className="btn btn-gold"
               onClick={() => alert(`Debit note PDF re-sent to supplier's email address.`)}
             >
-              Send debit note to vendor's mail
+              Send debit note to vendor&apos;s mail
             </button>
           </div>
         </div>
