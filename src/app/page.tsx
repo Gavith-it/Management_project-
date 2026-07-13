@@ -15,6 +15,7 @@ import WarpingView from "@/components/WarpingView";
 import ReconciliationView from "@/components/ReconciliationView";
 import SettingsView from "@/components/SettingsView";
 import ComingSoonView from "@/components/ComingSoonView";
+import LoginView from "@/components/LoginView";
 
 // Initial mock data as specified in the HTML
 const INITIAL_PURCHASES = [
@@ -99,14 +100,33 @@ export default function Home() {
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
   const [purchases, setPurchases] = useLocalStorage("maradi_purchases", INITIAL_PURCHASES);
 
-  // Sync purchases with Supabase on mount
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+
+  // Sync auth state and purchases on mount
   useEffect(() => {
+    const authStatus = sessionStorage.getItem("maradi_authenticated");
+    if (authStatus === "true") {
+      setIsAuthenticated(true);
+    }
+    setHasCheckedAuth(true);
+
     async function syncData() {
       const dbPurchases = await getPurchases(purchases);
       setPurchases(dbPurchases);
     }
     syncData();
   }, []);
+
+  const handleLogin = (username: string) => {
+    sessionStorage.setItem("maradi_authenticated", "true");
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("maradi_authenticated");
+    setIsAuthenticated(false);
+  };
 
   // Dynamically calculate next PUR ID
   const getNextId = () => {
@@ -166,6 +186,14 @@ export default function Home() {
   // Calculate dynamic notification counts
   const pendingCount = purchases.filter((p: any) => p.status === "Pending").length;
 
+  if (!hasCheckedAuth) {
+    return null; // Avoid hydration layout flash
+  }
+
+  if (!isAuthenticated) {
+    return <LoginView onLogin={handleLogin} />;
+  }
+
   return (
     <div className="shell">
       {/* SIDEBAR PANEL */}
@@ -174,6 +202,7 @@ export default function Home() {
         onViewChange={(view) => setActiveView(view)}
         userRole={userRole}
         pendingCount={pendingCount}
+        onLogout={handleLogout}
       />
 
       {/* MAIN CONTAINER */}

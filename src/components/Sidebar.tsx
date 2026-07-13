@@ -7,6 +7,7 @@ interface SidebarProps {
   onViewChange: (view: any) => void;
   userRole: string;
   pendingCount: number;
+  onLogout?: () => void;
 }
 
 export default function Sidebar({
@@ -14,6 +15,7 @@ export default function Sidebar({
   onViewChange,
   userRole,
   pendingCount,
+  onLogout,
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -117,15 +119,29 @@ export default function Sidebar({
         Settings <span style={{ marginLeft: "auto", fontSize: "9.5px", color: "#4A5278" }}>Soon</span>
       </div>
 
-      <div className="sidebar-foot">
-        <div className="user-row">
-          <div className="user-av">S</div>
-          <div>
-            <div className="user-name">Sharun</div>
-            <div className="user-role" style={{ textTransform: "capitalize" }}>
-              {userRole}
+      <div 
+        className="sidebar-foot" 
+        onClick={onLogout} 
+        style={{ cursor: onLogout ? "pointer" : "default" }}
+        title={onLogout ? "Click to log out" : undefined}
+      >
+        <div className="user-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div className="user-av">S</div>
+            <div>
+              <div className="user-name">Sharun</div>
+              <div className="user-role" style={{ textTransform: "capitalize" }}>
+                {userRole}
+              </div>
             </div>
           </div>
+          {onLogout && (
+            <div style={{ opacity: 0.6, display: "flex", alignItems: "center", color: "#b4bacc" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: "16px", height: "16px" }}>
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 01-2-2h4M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          )}
         </div>
       </div>
     </aside>
