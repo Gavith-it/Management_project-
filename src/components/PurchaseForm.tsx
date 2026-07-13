@@ -38,12 +38,13 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
   const [batchId, setBatchId] = useState("");
   const [marks, setMarks] = useState<number | "">("");
   const [rate, setRate] = useState<number | "">("");
-  const [gst, setGst] = useState(12);
+  const [gstType, setGstType] = useState<"IGST" | "CGST" | "SGST">("IGST");
+  const [gst, setGst] = useState(18); // Default to 18% for IGST
   const [remarks, setRemarks] = useState("");
 
   // New requested fields
   const [itemName, setItemName] = useState("");
-  const [itemId, setItemId] = useState("");
+  const [itemId, setItemId] = useState("RM-00000");
 
   const [errorMsg, setErrorMsg] = useState("");
   const [total, setTotal] = useState(0);
@@ -69,10 +70,11 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     setInvoice("");
     setMarks("");
     setRate("");
-    setGst(12);
+    setGstType("IGST");
+    setGst(18);
     setRemarks("");
     setItemName("");
-    setItemId("");
+    setItemId("RM-00000");
     setTotal(0);
   };
 
@@ -94,6 +96,15 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     } else {
       setIsCustomVendor(false);
       setVendor(val);
+    }
+  };
+
+  const handleGstTypeChange = (type: "IGST" | "CGST" | "SGST") => {
+    setGstType(type);
+    if (type === "IGST") {
+      setGst(18);
+    } else {
+      setGst(9);
     }
   };
 
@@ -170,7 +181,9 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
       itemName: sanitizedItemName,
       itemId: sanitizedItemId,
       freight: 0,
-      remarks: sanitizedRemarks || "New purchase created.",
+      remarks: sanitizedRemarks 
+        ? `[GST Type: ${gstType}] ${sanitizedRemarks}` 
+        : `[GST Type: ${gstType}] New purchase created.`,
     };
 
     onSave(newPurchase);
@@ -282,90 +295,124 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
                 </div>
               </div>
             </div>
-          )}
+        )}
 
-          <div className="dh-sep">Item Details</div>
-
-          {/* New Item Name & Item ID fields */}
-          <div className="df2">
-            <div className="df">
-              <label className="df-label">Item Name</label>
-              <input
-                className="df-input"
-                placeholder="e.g. Gold Zari Thread"
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-              />
-            </div>
-            <div className="df">
-              <label className="df-label">Item ID</label>
-              <input
-                className="df-input mono"
-                placeholder="e.g. ZRI-GLD-001"
-                value={itemId}
-                onChange={(e) => setItemId(e.target.value)}
-              />
-            </div>
+        {/* Batch ID displayed cleanly without an input box (no box and all) */}
+        <div className="df" style={{ marginTop: "14px", marginBottom: "14px" }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 14px",
+            backgroundColor: "var(--bg)",
+            borderRadius: "var(--r-sm)",
+            border: "1.5px dashed var(--line-strong)"
+          }}>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--t2)" }}>Batch ID</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "16px", color: "var(--brand)" }}>{batchId}</span>
           </div>
+        </div>
 
-          <div className="df2">
-            <div className="df">
-              <label className="df-label">Invoice no.</label>
-              <input
-                className="df-input mono"
-                placeholder="INV-..."
-                value={invoice}
-                onChange={(e) => setInvoice(e.target.value)}
-              />
-            </div>
-            <div className="df">
-              <label className="df-label">Batch ID (auto)</label>
-              <input className="df-input mono computed" value={batchId} readOnly />
-            </div>
-          </div>
+        <div className="dh-sep">Item Details</div>
 
-          <div className="df2">
-            <div className="df">
-              <label className="df-label">No. of marks</label>
-              <input
-                className="df-input mono big"
-                type="number"
-                placeholder="0"
-                value={marks}
-                onChange={(e) =>
-                  setMarks(e.target.value === "" ? "" : Number(e.target.value))
-                }
-              />
-            </div>
-            <div className="df">
-              <label className="df-label">Cost per mark (₹)</label>
-              <input
-                className="df-input mono big"
-                type="number"
-                placeholder="0"
-                value={rate}
-                onChange={(e) =>
-                  setRate(e.target.value === "" ? "" : Number(e.target.value))
-                }
-              />
-            </div>
-          </div>
-
+        {/* New Item Name & Item ID fields */}
+        <div className="df2">
           <div className="df">
-            <label className="df-label" htmlFor="gstSelect">GST rate</label>
+            <label className="df-label">Item Name</label>
+            <input
+              className="df-input"
+              placeholder="e.g. Gold Zari Thread"
+              value={itemName}
+              onChange={(e) => setItemName(e.target.value)}
+            />
+          </div>
+          <div className="df">
+            <label className="df-label">Item ID</label>
+            <input
+              className="df-input mono"
+              placeholder="e.g. ZRI-GLD-001"
+              value={itemId}
+              onChange={(e) => setItemId(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="df">
+          <label className="df-label">Invoice no.</label>
+          <input
+            className="df-input mono"
+            placeholder="INV-..."
+            value={invoice}
+            onChange={(e) => setInvoice(e.target.value)}
+          />
+        </div>
+
+        <div className="df2">
+          <div className="df">
+            <label className="df-label">No. of marks</label>
+            <input
+              className="df-input mono big"
+              type="number"
+              placeholder="0"
+              value={marks}
+              onChange={(e) =>
+                setMarks(e.target.value === "" ? "" : Number(e.target.value))
+              }
+            />
+          </div>
+          <div className="df">
+            <label className="df-label">Cost per mark (₹)</label>
+            <input
+              className="df-input mono big"
+              type="number"
+              placeholder="0"
+              value={rate}
+              onChange={(e) =>
+                setRate(e.target.value === "" ? "" : Number(e.target.value))
+              }
+            />
+          </div>
+        </div>
+
+        {/* GST Type & Dynamic GST rate dropdown selectors side by side */}
+        <div className="df2">
+          <div className="df">
+            <label className="df-label" htmlFor="gstTypeSelect">GST Type</label>
             <select
-              id="gstSelect"
+              id="gstTypeSelect"
+              className="df-input"
+              value={gstType}
+              onChange={(e) => handleGstTypeChange(e.target.value as any)}
+            >
+              <option value="IGST">IGST</option>
+              <option value="CGST">CGST</option>
+              <option value="SGST">SGST</option>
+            </select>
+          </div>
+          <div className="df">
+            <label className="df-label" htmlFor="gstRateSelect">GST Rate</label>
+            <select
+              id="gstRateSelect"
               className="df-input"
               value={gst}
               onChange={(e) => setGst(Number(e.target.value))}
             >
-              <option value="0">0%</option>
-              <option value="5">5%</option>
-              <option value="12">12%</option>
-              <option value="18">18%</option>
-              <option value="28">28%</option>
+              {gstType === "IGST" ? (
+                <>
+                  <option value="5">5%</option>
+                  <option value="18">18%</option>
+                  <option value="40">40%</option>
+                </>
+              ) : (
+                <>
+                  <option value="2.5">2.5%</option>
+                  <option value="9">9%</option>
+                  <option value="20">20%</option>
+                </>
+              )}
             </select>
           </div>
+        </div>
 
           <div className="df-computed-big">
             <div className="lbl">Total (excl. freight)</div>
