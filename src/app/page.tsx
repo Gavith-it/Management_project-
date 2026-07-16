@@ -14,7 +14,6 @@ import JobCardsView from "@/components/JobCardsView";
 import WarpingView from "@/components/WarpingView";
 import ReconciliationView from "@/components/ReconciliationView";
 import SettingsView from "@/components/SettingsView";
-import ComingSoonView from "@/components/ComingSoonView";
 import LoginView from "@/components/LoginView";
 
 // Initial mock data as specified in the HTML
@@ -231,38 +230,23 @@ export default function Home() {
         )}
 
         {activeView === "issue" && (
-          <ComingSoonView
-            title="Issue to production"
-            description="Issue approved zari to the warping team. One batch can have multiple job cards — consumption is tracked per card."
-          />
+          <IssueView />
         )}
 
         {activeView === "jobcards" && (
-          <ComingSoonView
-            title="Job cards"
-            description="One card per production run. Multiple cards can be linked to the same issued batch."
-          />
+          <JobCardsView />
         )}
 
         {activeView === "warping" && (
-          <ComingSoonView
-            title="Zari warping"
-            description="Record weights before and after winding for each job card. Job cards appear here automatically once submitted."
-          />
+          <WarpingView />
         )}
 
         {activeView === "reconciliation" && (
-          <ComingSoonView
-            title="Reconciliation"
-            description="Actual zari used vs. what was issued. Numbers come from submitted warping logs."
-          />
+          <ReconciliationView />
         )}
 
         {activeView === "settings" && (
-          <ComingSoonView
-            title="System Settings"
-            description="Configure manufacturing parameters, user permissions, and supplier rates."
-          />
+          <SettingsView />
         )}
       </div>
 
