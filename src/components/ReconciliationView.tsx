@@ -1,8 +1,18 @@
 "use client";
 
 import React from "react";
+import { Reconciliation } from "@/utils/supabaseService";
 
-export default function ReconciliationView() {
+interface ReconciliationViewProps {
+  reconciliations: Reconciliation[];
+}
+
+export default function ReconciliationView({ reconciliations }: ReconciliationViewProps) {
+  // Calculate dynamic stats
+  const toleranceCount = reconciliations.filter(r => r.status === "Within tolerance").length;
+  const minorCount = reconciliations.filter(r => r.status === "Minor deviation").length;
+  const investigationCount = reconciliations.filter(r => r.status === "Needs investigation").length;
+
   return (
     <div className="page on">
       <div className="ph">
@@ -15,116 +25,84 @@ export default function ReconciliationView() {
       <div className="stat-row s3" style={{ marginBottom: "18px" }}>
         <div className="stat-box">
           <div className="lbl">Within tolerance</div>
-          <div className="val" style={{ color: "var(--ok)" }}>7</div>
+          <div className="val" style={{ color: "var(--ok)" }}>{toleranceCount}</div>
         </div>
         <div className="stat-box">
           <div className="lbl">Minor deviation</div>
-          <div className="val" style={{ color: "var(--warn)" }}>2</div>
+          <div className="val" style={{ color: "var(--warn)" }}>{minorCount}</div>
         </div>
         <div className="stat-box">
           <div className="lbl">Needs investigation</div>
-          <div className="val" style={{ color: "var(--danger)" }}>1</div>
+          <div className="val" style={{ color: "var(--danger)" }}>{investigationCount}</div>
         </div>
       </div>
 
       {/* ITEMS */}
-      <div className="recon-item">
-        <div className="recon-top">
-          <div>
-            <div style={{ fontSize: "14px", fontWeight: 700 }}>JC-0091 &middot; Body warp &middot; Loom 4</div>
-            <div style={{ fontSize: "12.5px", color: "var(--t2)", marginTop: "2px" }}>
-              Banarasi Gold Zari &middot; WRP-0011 &middot; 05 Jul
-            </div>
+      <div className="list">
+        {reconciliations.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: "40px", color: "var(--t3)" }}>
+            No reconciliations computed yet. Complete a warping log to generate a reconciliation record.
           </div>
-          <span className="bdg bdg-danger">Needs investigation</span>
-        </div>
-        <div className="recon-row">
-          <div>
-            <div className="lbl">Issued</div>
-            <div className="val">2,900 g</div>
-          </div>
-          <div>
-            <div className="lbl">Net used</div>
-            <div className="val">2,714 g</div>
-          </div>
-          <div>
-            <div className="lbl">Wastage</div>
-            <div className="val">186 g</div>
-          </div>
-          <div>
-            <div className="lbl">Loss</div>
-            <div className="val" style={{ color: "var(--danger)" }}>6.4%</div>
-          </div>
-        </div>
-        <div className="progress">
-          <div className="progress-fill" style={{ width: "93.6%", background: "linear-gradient(90deg,var(--danger-line),var(--danger))" }}></div>
-        </div>
-      </div>
+        ) : (
+          reconciliations.map((recon, idx) => {
+            const progressPct = Math.max(0, Math.min(100, 100 - (recon.lossPercentage || 0)));
+            const isDanger = recon.status === "Needs investigation";
+            const isWarn = recon.status === "Minor deviation";
+            
+            const progressColor = isDanger 
+              ? "linear-gradient(90deg, var(--danger-line), var(--danger))"
+              : isWarn 
+                ? "linear-gradient(90deg, var(--warn-line), var(--warn))"
+                : "linear-gradient(90deg, var(--ok-line), var(--ok))";
 
-      <div className="recon-item">
-        <div className="recon-top">
-          <div>
-            <div style={{ fontSize: "14px", fontWeight: 700 }}>JC-0088 &middot; Border warp &middot; Loom 1</div>
-            <div style={{ fontSize: "12.5px", color: "var(--t2)", marginTop: "2px" }}>
-              Mysore Silk Border &middot; WRP-0010 &middot; 04 Jul
-            </div>
-          </div>
-          <span className="bdg bdg-warn">Minor deviation</span>
-        </div>
-        <div className="recon-row">
-          <div>
-            <div className="lbl">Issued</div>
-            <div className="val">1,850 g</div>
-          </div>
-          <div>
-            <div className="lbl">Net used</div>
-            <div className="val">1,782 g</div>
-          </div>
-          <div>
-            <div className="lbl">Wastage</div>
-            <div className="val">68 g</div>
-          </div>
-          <div>
-            <div className="lbl">Loss</div>
-            <div className="val" style={{ color: "var(--warn)" }}>3.7%</div>
-          </div>
-        </div>
-        <div className="progress">
-          <div className="progress-fill" style={{ width: "96.3%", background: "linear-gradient(90deg,var(--warn-line),var(--warn))" }}></div>
-        </div>
-      </div>
-
-      <div className="recon-item">
-        <div className="recon-top">
-          <div>
-            <div style={{ fontSize: "14px", fontWeight: 700 }}>JC-0085 &middot; Body warp &middot; Loom 3</div>
-            <div style={{ fontSize: "12.5px", color: "var(--t2)", marginTop: "2px" }}>
-              Kanjivaram Peacock &middot; WRP-0009 &middot; 03 Jul
-            </div>
-          </div>
-          <span className="bdg bdg-ok">Within tolerance</span>
-        </div>
-        <div className="recon-row">
-          <div>
-            <div className="lbl">Issued</div>
-            <div className="val">3,400 g</div>
-          </div>
-          <div>
-            <div className="lbl">Net used</div>
-            <div className="val">3,361 g</div>
-          </div>
-          <div>
-            <div className="lbl">Wastage</div>
-            <div className="val">39 g</div>
-          </div>
-          <div>
-            <div className="lbl">Loss</div>
-            <div className="val" style={{ color: "var(--ok)" }}>1.1%</div>
-          </div>
-        </div>
-        <div className="progress">
-          <div className="progress-fill" style={{ width: "98.9%" }}></div>
-        </div>
+            return (
+              <div className="recon-item" key={recon.id || idx}>
+                <div className="recon-top">
+                  <div>
+                    <div style={{ fontSize: "14px", fontWeight: 700 }}>
+                      Job Card: {recon.jobCardId}
+                    </div>
+                  </div>
+                  <span className={`bdg ${
+                    isDanger ? "bdg-danger" : isWarn ? "bdg-warn" : "bdg-ok"
+                  }`}>
+                    {recon.status}
+                  </span>
+                </div>
+                <div className="recon-row">
+                  <div>
+                    <div className="lbl">Issued Weight</div>
+                    <div className="val">{recon.issuedWeight} g</div>
+                  </div>
+                  <div>
+                    <div className="lbl">Net Used</div>
+                    <div className="val">{recon.netUsedWeight} g</div>
+                  </div>
+                  <div>
+                    <div className="lbl">Wastage</div>
+                    <div className="val">{recon.wastageWeight} g</div>
+                  </div>
+                  <div>
+                    <div className="lbl">Loss %</div>
+                    <div className="val" style={{ 
+                      color: isDanger ? "var(--danger)" : isWarn ? "var(--warn)" : "var(--ok)",
+                      fontWeight: 700 
+                    }}>{recon.lossPercentage}%</div>
+                  </div>
+                </div>
+                <div className="progress">
+                  <div 
+                    className="progress-fill" 
+                    style={{ 
+                      width: `${progressPct}%`, 
+                      background: progressColor 
+                    }}
+                  ></div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

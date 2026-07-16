@@ -179,3 +179,283 @@ export async function updatePurchaseStatus(
     return false;
   }
 }
+
+export interface MaterialIssue {
+  id: string;
+  batchId: string;
+  issueDate: string;
+  bobbinsIssued: number;
+  grossWeight: number;
+  crateWeight: number;
+  bobbinWeight: number;
+  netWeight: number;
+  issuedTo: string;
+  status: string; // 'Active' | 'Closed'
+  remarks: string;
+}
+
+export interface JobCard {
+  id: string;
+  issueId: string;
+  cardDate: string;
+  sareeDesign: string;
+  preparationType: string; // 'Body warp' | 'Border warp'
+  loomNo: string;
+  operatorName: string;
+  ends: number;
+  lengthMeters: number;
+  status: string; // 'In progress' | 'Pending Warp' | 'Needs Review' | 'Completed'
+}
+
+export interface WarpingLog {
+  id: string;
+  jobCardId: string;
+  startWeight: number;
+  remainingWeight: number;
+  netWarpWeight: number;
+  wastage: number;
+  operatorName: string;
+  loggedAt?: string;
+}
+
+export interface Reconciliation {
+  id?: string;
+  jobCardId: string;
+  issuedWeight: number;
+  netUsedWeight: number;
+  wastageWeight: number;
+  lossPercentage: number;
+  status: string; // 'Within tolerance' | 'Minor deviation' | 'Needs investigation'
+}
+
+function mapRowToMaterialIssue(row: any): MaterialIssue {
+  return {
+    id: row.id,
+    batchId: row.batch_id,
+    issueDate: row.issue_date,
+    bobbinsIssued: Number(row.bobbins_issued),
+    grossWeight: Number(row.gross_weight_g),
+    crateWeight: Number(row.crate_weight_g),
+    bobbinWeight: Number(row.bobbin_weight_g),
+    netWeight: Number(row.net_weight_g),
+    issuedTo: row.issued_to,
+    status: row.status,
+    remarks: row.remarks || "",
+  };
+}
+
+function mapRowToJobCard(row: any): JobCard {
+  return {
+    id: row.id,
+    issueId: row.issue_id,
+    cardDate: row.card_date,
+    sareeDesign: row.saree_design,
+    preparationType: row.preparation_type,
+    loomNo: row.loom_no,
+    operatorName: row.operator_name,
+    ends: Number(row.ends),
+    lengthMeters: Number(row.length_meters),
+    status: row.status,
+  };
+}
+
+function mapRowToWarpingLog(row: any): WarpingLog {
+  return {
+    id: row.id,
+    jobCardId: row.job_card_id,
+    startWeight: Number(row.start_weight_g),
+    remainingWeight: Number(row.remaining_weight_g),
+    netWarpWeight: Number(row.net_warp_weight_g),
+    wastage: Number(row.wastage_g),
+    operatorName: row.operator_name,
+    loggedAt: row.logged_at,
+  };
+}
+
+function mapRowToReconciliation(row: any): Reconciliation {
+  return {
+    id: row.id,
+    jobCardId: row.job_card_id,
+    issuedWeight: Number(row.issued_weight_g),
+    netUsedWeight: Number(row.net_used_weight_g),
+    wastageWeight: Number(row.wastage_weight_g),
+    lossPercentage: Number(row.loss_percentage),
+    status: row.status,
+  };
+}
+
+export async function getMaterialIssues(fallbackData: MaterialIssue[]): Promise<MaterialIssue[]> {
+  if (!getIsSupabaseConfigured()) return fallbackData;
+  try {
+    const { data, error } = await supabase
+      .from("material_issues")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Error fetching material_issues:", error.message);
+      return fallbackData;
+    }
+    if (data) return data.map(mapRowToMaterialIssue);
+  } catch (err) {
+    console.error("Supabase issues request failed:", err);
+  }
+  return fallbackData;
+}
+
+export async function saveMaterialIssue(issue: MaterialIssue): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return false;
+  try {
+    const dbIssue = {
+      id: issue.id,
+      batch_id: issue.batchId,
+      issue_date: issue.issueDate,
+      bobbins_issued: issue.bobbinsIssued,
+      gross_weight_g: issue.grossWeight,
+      crate_weight_g: issue.crateWeight,
+      bobbin_weight_g: issue.bobbinWeight,
+      issued_to: issue.issuedTo,
+      status: issue.status,
+      remarks: issue.remarks,
+    };
+    const { error } = await supabase.from("material_issues").insert(dbIssue);
+    if (error) {
+      console.error("Failed to save material_issue:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase material_issue insert failed:", err);
+    return false;
+  }
+}
+
+export async function getJobCards(fallbackData: JobCard[]): Promise<JobCard[]> {
+  if (!getIsSupabaseConfigured()) return fallbackData;
+  try {
+    const { data, error } = await supabase
+      .from("job_cards")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Error fetching job_cards:", error.message);
+      return fallbackData;
+    }
+    if (data) return data.map(mapRowToJobCard);
+  } catch (err) {
+    console.error("Supabase job_cards request failed:", err);
+  }
+  return fallbackData;
+}
+
+export async function saveJobCard(jc: JobCard): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return false;
+  try {
+    const dbJc = {
+      id: jc.id,
+      issue_id: jc.issueId,
+      card_date: jc.cardDate,
+      saree_design: jc.sareeDesign,
+      preparation_type: jc.preparationType,
+      loom_no: jc.loomNo,
+      operator_name: jc.operatorName,
+      ends: jc.ends,
+      length_meters: jc.lengthMeters,
+      status: jc.status,
+    };
+    const { error } = await supabase.from("job_cards").insert(dbJc);
+    if (error) {
+      console.error("Failed to save job_card:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase job_card insert failed:", err);
+    return false;
+  }
+}
+
+export async function getWarpingLogs(fallbackData: WarpingLog[]): Promise<WarpingLog[]> {
+  if (!getIsSupabaseConfigured()) return fallbackData;
+  try {
+    const { data, error } = await supabase
+      .from("warping_logs")
+      .select("*")
+      .order("logged_at", { ascending: false });
+    if (error) {
+      console.error("Error fetching warping_logs:", error.message);
+      return fallbackData;
+    }
+    if (data) return data.map(mapRowToWarpingLog);
+  } catch (err) {
+    console.error("Supabase warping_logs request failed:", err);
+  }
+  return fallbackData;
+}
+
+export async function saveWarpingLog(log: WarpingLog): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return false;
+  try {
+    const dbLog = {
+      id: log.id,
+      job_card_id: log.jobCardId,
+      start_weight_g: log.startWeight,
+      remaining_weight_g: log.remainingWeight,
+      wastage_g: log.wastage,
+      operator_name: log.operatorName,
+    };
+    const { error } = await supabase.from("warping_logs").insert(dbLog);
+    if (error) {
+      console.error("Failed to save warping_log:", error.message);
+      return false;
+    }
+    
+    // Also update the job card status to Completed
+    await supabase.from("job_cards").update({ status: "Completed" }).eq("id", log.jobCardId);
+    
+    return true;
+  } catch (err) {
+    console.error("Supabase warping_log insert failed:", err);
+    return false;
+  }
+}
+
+export async function getReconciliations(fallbackData: Reconciliation[]): Promise<Reconciliation[]> {
+  if (!getIsSupabaseConfigured()) return fallbackData;
+  try {
+    const { data, error } = await supabase
+      .from("reconciliations")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("Error fetching reconciliations:", error.message);
+      return fallbackData;
+    }
+    if (data) return data.map(mapRowToReconciliation);
+  } catch (err) {
+    console.error("Supabase reconciliations request failed:", err);
+  }
+  return fallbackData;
+}
+
+export async function saveReconciliation(recon: Reconciliation): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return false;
+  try {
+    const dbRecon = {
+      job_card_id: recon.jobCardId,
+      issued_weight_g: recon.issuedWeight,
+      net_used_weight_g: recon.netUsedWeight,
+      wastage_weight_g: recon.wastageWeight,
+      loss_percentage: recon.lossPercentage,
+      status: recon.status,
+    };
+    const { error } = await supabase.from("reconciliations").insert(dbRecon);
+    if (error) {
+      console.error("Failed to save reconciliation:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase reconciliation insert failed:", err);
+    return false;
+  }
+}
