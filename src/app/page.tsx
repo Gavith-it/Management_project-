@@ -20,68 +20,68 @@ import LoginView from "@/components/LoginView";
 // Initial mock data as specified in the HTML
 const INITIAL_PURCHASES = [
   {
-    id: "PUR-1042",
+    id: "PUR-0004",
     vendor: "Vellore Zari Co.",
     marks: 12,
     rate: 1538,
     gst: 12,
     total: 20671,
-    batch: "VZC-317",
+    batch: "PZ26-0004",
     date: "2026-07-07",
     status: "Recorded",
-    invoice: "INV-9921",
+    invoice: "INV-2026-0004",
     itemName: "Gold Zari Thread Super",
     itemId: "ZRI-GLD-001",
     freight: 120,
-    remarks: "Standard shipment, recorded successfully.",
+    remarks: "[GST Type: IGST] Standard shipment, recorded successfully.",
   },
   {
-    id: "PUR-1041",
+    id: "PUR-0003",
     vendor: "Vellore Zari Co.",
     marks: 15,
     rate: 1240,
     gst: 12,
     total: 20832,
-    batch: "VZC-316",
+    batch: "PZ26-0003",
     date: "2026-07-06",
     status: "On hold",
-    invoice: "INV-9915",
+    invoice: "INV-2026-0003",
     itemName: "Standard Zari Wire",
     itemId: "ZRI-STD-023",
     freight: 0,
-    remarks: "Shortage on marks 13–14. Supplier informed 06 Jul; balance expected by 10 Jul.",
+    remarks: "[GST Type: IGST] Shortage on marks 13–14. Supplier informed 06 Jul; balance expected by 10 Jul.",
   },
   {
-    id: "PUR-1040",
+    id: "PUR-0002",
     vendor: "Surat Metallic Threads",
     marks: 8,
     rate: 1523,
     gst: 12,
     total: 13646,
-    batch: "STT-102",
+    batch: "PZ26-0002",
     date: "2026-07-05",
     status: "Pending",
-    invoice: "INV-4412",
+    invoice: "INV-2026-0002",
     itemName: "Silver Metallic Thread",
     itemId: "ZRI-SLV-008",
     freight: 0,
-    remarks: "Pending freight charging.",
+    remarks: "[GST Type: IGST] Pending freight charging.",
   },
   {
-    id: "PUR-1039",
+    id: "PUR-0001",
     vendor: "Kanchipuram Gold Threads",
     marks: 10,
     rate: 1216,
     gst: 12,
     total: 13619,
-    batch: "KGT-055",
+    batch: "PZ26-0001",
     date: "2026-07-03",
     status: "Recorded",
-    invoice: "INV-1109",
+    invoice: "INV-2026-0001",
     itemName: "Pure Kanchi Gold Thread",
     itemId: "ZRI-KNC-045",
     freight: 250,
-    remarks: "High grade thread, verified.",
+    remarks: "[GST Type: IGST] High grade thread, verified.",
   },
 ];
 
@@ -98,7 +98,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ViewType>("dashboard");
   const [userRole, setUserRole] = useState("admin");
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
-  const [purchases, setPurchases] = useLocalStorage("maradi_purchases", INITIAL_PURCHASES);
+  const [purchases, setPurchases] = useLocalStorage("maradi_purchases_v2", INITIAL_PURCHASES);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
@@ -128,12 +128,12 @@ export default function Home() {
     setIsAuthenticated(false);
   };
 
-  // Dynamically calculate next PUR ID
+  // Dynamically calculate next PUR ID (starts from 1, i.e., 0001)
   const getNextId = () => {
-    if (!purchases || purchases.length === 0) return 1043;
+    if (!purchases || purchases.length === 0) return 1;
     const ids = purchases.map((p: any) => {
       const num = parseInt(p.id.replace("PUR-", ""), 10);
-      return isNaN(num) ? 1000 : num;
+      return isNaN(num) ? 0 : num;
     });
     return Math.max(...ids) + 1;
   };

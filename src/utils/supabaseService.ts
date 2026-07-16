@@ -15,6 +15,11 @@ export interface Purchase {
   itemId: string;
   freight: number;
   remarks: string;
+  vendorPhone?: string;
+  vendorGst?: string;
+  vendorPan?: string;
+  vendorEmail?: string;
+  vendorAddress?: string;
 }
 
 /**
@@ -96,7 +101,14 @@ export async function savePurchase(purchase: Purchase): Promise<boolean> {
       // Create new supplier if it does not exist
       const { data: newSupplier, error: supplierInsertError } = await supabase
         .from("suppliers")
-        .insert({ name: purchase.vendor })
+        .insert({ 
+          name: purchase.vendor,
+          phone: purchase.vendorPhone || null,
+          gst_no: purchase.vendorGst || null,
+          pan_no: purchase.vendorPan || null,
+          address: purchase.vendorAddress || null,
+          email: purchase.vendorEmail || null
+        })
         .select("id")
         .single();
 

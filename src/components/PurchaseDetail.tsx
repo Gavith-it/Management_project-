@@ -17,6 +17,11 @@ interface Purchase {
   itemId: string;
   freight: number;
   remarks: string;
+  vendorPhone?: string;
+  vendorGst?: string;
+  vendorPan?: string;
+  vendorEmail?: string;
+  vendorAddress?: string;
 }
 
 interface PurchaseDetailProps {
@@ -25,8 +30,53 @@ interface PurchaseDetailProps {
   onUpdateStatus: (id: string, newStatus: string, freightAmt?: number) => void;
 }
 
+const SUPPLIER_DETAILS: Record<string, { address?: string; phone?: string; gst_no?: string; pan_no?: string; email?: string }> = {
+  "Vellore Zari Co.": {
+    address: "14 Thread Bazaar Rd, Vellore",
+    phone: "+91 98400 11223",
+    gst_no: "33AACCV1234F1Z5",
+    pan_no: "AACCV1234F",
+    email: "info@vellorezari.com"
+  },
+  "Surat Metallic Threads": {
+    address: "22 GIDC Area, Surat",
+    phone: "+91 95300 44556",
+    gst_no: "24AABCS5678D2Z9",
+    pan_no: "AABCS5678D",
+    email: "contact@suratmetallic.com"
+  },
+  "Kanchipuram Gold Threads": {
+    address: "88 Temple Road, Kanchipuram",
+    phone: "+91 94440 99887",
+    gst_no: "33AAACK4567M1Z3",
+    pan_no: "AAACK4567M",
+    email: "sales@kanchithreads.com"
+  }
+};
+
 export default function PurchaseDetail({ purchase, onBack, onUpdateStatus }: PurchaseDetailProps) {
   const [freightInput, setFreightInput] = useState<number | "">("");
+
+  const getSupplierDetails = () => {
+    if (purchase.vendorPhone || purchase.vendorGst || purchase.vendorPan || purchase.vendorEmail || purchase.vendorAddress) {
+      return {
+        address: purchase.vendorAddress || "-",
+        phone: purchase.vendorPhone || "-",
+        gst_no: purchase.vendorGst || "-",
+        pan_no: purchase.vendorPan || "-",
+        email: purchase.vendorEmail || "-"
+      };
+    }
+    return SUPPLIER_DETAILS[purchase.vendor] || {
+      address: "-",
+      phone: "-",
+      gst_no: "-",
+      pan_no: "-",
+      email: "-"
+    };
+  };
+
+  const vendorDetails = getSupplierDetails();
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
@@ -194,7 +244,7 @@ export default function PurchaseDetail({ purchase, onBack, onUpdateStatus }: Pur
       {/* SUPPLIER */}
       <div className="card" style={{ marginBottom: "12px" }}>
         <div style={{ fontWeight: 700, fontSize: "11px", marginBottom: "12px", color: "var(--t2)", textTransform: "uppercase", letterSpacing: ".04em" }}>
-          Supplier
+          Supplier Details
         </div>
         <div className="fg">
           <div className="f-row">
@@ -202,8 +252,24 @@ export default function PurchaseDetail({ purchase, onBack, onUpdateStatus }: Pur
             <div style={{ fontSize: "14px", fontWeight: "700" }}>{purchase.vendor}</div>
           </div>
           <div className="f-row">
-            <span className="f-label">Vendor Type</span>
-            <div style={{ fontSize: "14px" }}>Internal Approved Supplier</div>
+            <span className="f-label">Phone</span>
+            <div style={{ fontSize: "14px" }}>{vendorDetails.phone}</div>
+          </div>
+          <div className="f-row">
+            <span className="f-label">Email</span>
+            <div style={{ fontSize: "14px" }}>{vendorDetails.email}</div>
+          </div>
+          <div className="f-row">
+            <span className="f-label">GST no.</span>
+            <div style={{ fontSize: "14px", fontFamily: "var(--font-mono)" }}>{vendorDetails.gst_no}</div>
+          </div>
+          <div className="f-row">
+            <span className="f-label">PAN</span>
+            <div style={{ fontSize: "14px", fontFamily: "var(--font-mono)" }}>{vendorDetails.pan_no}</div>
+          </div>
+          <div className="f-row" style={{ gridColumn: "span 2" }}>
+            <span className="f-label">Address</span>
+            <div style={{ fontSize: "14px", lineHeight: "1.6" }}>{vendorDetails.address}</div>
           </div>
         </div>
       </div>

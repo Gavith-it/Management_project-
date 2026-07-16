@@ -12,6 +12,7 @@ create table public.suppliers (
     gst_no varchar(15) check (length(gst_no) = 15 or gst_no is null),
     pan_no varchar(10) check (length(pan_no) = 10 or pan_no is null),
     address text,
+    email text,
     created_at timestamptz not null default now()
 );
 

@@ -30,21 +30,23 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
   const [vendor, setVendor] = useState("Vellore Zari Co.");
   const [isCustomVendor, setIsCustomVendor] = useState(false);
   const [customVendorName, setCustomVendorName] = useState("");
-  const [customVendorPhone, setCustomVendorPhone] = useState("");
+  const [customVendorPhone, setCustomVendorPhone] = useState("+91");
   const [customVendorGst, setCustomVendorGst] = useState("");
   const [customVendorPan, setCustomVendorPan] = useState("");
+  const [customVendorEmail, setCustomVendorEmail] = useState("");
+  const [customVendorAddress, setCustomVendorAddress] = useState("");
 
   const [invoice, setInvoice] = useState("");
   const [batchId, setBatchId] = useState("");
   const [marks, setMarks] = useState<number | "">("");
   const [rate, setRate] = useState<number | "">("");
-  const [gstType, setGstType] = useState<"IGST" | "CGST" | "SGST">("IGST");
+  const [gstType, setGstType] = useState<"IGST" | "CGST + SGST">("IGST");
   const [gst, setGst] = useState(18); // Default to 18% for IGST
+  const [freight, setFreight] = useState<number | "">("");
   const [remarks, setRemarks] = useState("");
 
-  // New requested fields
   const [itemName, setItemName] = useState("");
-  const [itemId, setItemId] = useState("RM-00000");
+  const [itemId, setItemId] = useState(() => `RM-${String(nextId).padStart(6, "0")}`);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [total, setTotal] = useState(0);
@@ -54,7 +56,6 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     if (isOpen) {
       const today = new Date().toISOString().split("T")[0];
       setDate(today);
-      setBatchId(`PZ26-${String(nextId).padStart(4, "0")}`);
       setErrorMsg("");
       resetForm();
     }
@@ -64,28 +65,33 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     setVendor("Vellore Zari Co.");
     setIsCustomVendor(false);
     setCustomVendorName("");
-    setCustomVendorPhone("");
+    setCustomVendorPhone("+91");
     setCustomVendorGst("");
     setCustomVendorPan("");
-    setInvoice("");
+    setCustomVendorEmail("");
+    setCustomVendorAddress("");
+    setInvoice(`INV-2026-${String(nextId).padStart(4, "0")}`);
+    setBatchId(`PZ26-${String(nextId).padStart(4, "0")}`);
     setMarks("");
     setRate("");
     setGstType("IGST");
     setGst(18);
+    setFreight("");
     setRemarks("");
     setItemName("");
-    setItemId("RM-00000");
+    setItemId(`RM-${String(nextId).padStart(6, "0")}`);
     setTotal(0);
   };
 
-  // Calculate total automatically
+  // Calculate total automatically (including gst and freight)
   useEffect(() => {
     const marksNum = Number(marks) || 0;
     const rateNum = Number(rate) || 0;
     const subtotal = marksNum * rateNum;
     const gstAmt = subtotal * (gst / 100);
-    setTotal(Math.round(subtotal + gstAmt));
-  }, [marks, rate, gst]);
+    const freightNum = Number(freight) || 0;
+    setTotal(Math.round(subtotal + gstAmt + freightNum));
+  }, [marks, rate, gst, freight]);
 
   if (!isOpen) return null;
 
@@ -99,23 +105,26 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     }
   };
 
-  const handleGstTypeChange = (type: "IGST" | "CGST" | "SGST") => {
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    if (!val.startsWith("+91")) {
+      val = "+91";
+    }
+    const digits = val.substring(3).replace(/\D/g, "");
+    const truncated = digits.substring(0, 10);
+    setCustomVendorPhone("+91" + truncated);
+  };
+
+  const handleGstTypeChange = (type: "IGST" | "CGST + SGST") => {
     setGstType(type);
     if (type === "IGST") {
       setGst(18);
     } else {
-      setGst(9);
+      setGst(18); // Default split total is 18% (9% + 9%)
     }
   };
 
-  const handleItemIdChange = (val: string) => {
-    const upperVal = val.toUpperCase();
-    if (!upperVal.startsWith("RM-")) {
-      setItemId("RM-" + upperVal.replace(/^RM-?/g, ""));
-    } else {
-      setItemId(upperVal);
-    }
-  };
+
 
   const handleSave = () => {
     // 1. Validation & Sanitation
@@ -124,6 +133,38 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     if (!finalVendor) {
       setErrorMsg("Please select or enter a supplier.");
       return;
+    }
+
+    // Validations for custom vendor fields
+    if (isCustomVendor) {
+      if (customVendorPhone !== "+91") {
+        const digits = customVendorPhone.substring(3);
+        if (digits.length !== 10) {
+          setErrorMsg("Please enter exactly 10 digits for the phone number after +91.");
+          return;
+        }
+      }
+      if (customVendorGst.trim()) {
+        const cleanGst = customVendorGst.trim();
+        if (cleanGst.length !== 15 || !/^[A-Z0-9]+$/i.test(cleanGst)) {
+          setErrorMsg("Please enter a valid 15-character alphanumeric GST number.");
+          return;
+        }
+      }
+      if (customVendorPan.trim()) {
+        const cleanPan = customVendorPan.trim();
+        if (cleanPan.length !== 10 || !/^[A-Z0-9]+$/i.test(cleanPan)) {
+          setErrorMsg("Please enter a valid 10-character alphanumeric PAN number.");
+          return;
+        }
+      }
+      if (customVendorEmail.trim()) {
+        const cleanEmail = customVendorEmail.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+          setErrorMsg("Please enter a valid email address.");
+          return;
+        }
+      }
     }
     if (!itemName.trim()) {
       setErrorMsg("Item Name is required.");
@@ -177,7 +218,7 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
 
     // Prepare purchase object
     const newPurchase = {
-      id: `PUR-${nextId}`,
+      id: `PUR-${String(nextId).padStart(4, "0")}`,
       vendor: sanitizedVendor,
       marks: Number(marks),
       rate: Number(rate),
@@ -185,14 +226,20 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
       total: total,
       batch: batchId,
       date: date || new Date().toISOString().split("T")[0],
-      status: "Pending", // New purchases start in pending state
+      status: "Recorded", // New purchases are recorded automatically (future SAP integration)
       invoice: sanitizedInvoice,
       itemName: sanitizedItemName,
       itemId: sanitizedItemId,
-      freight: 0,
+      freight: Number(freight) || 0,
       remarks: sanitizedRemarks 
         ? `[GST Type: ${gstType}] ${sanitizedRemarks}` 
         : `[GST Type: ${gstType}] New purchase created.`,
+      // Custom vendor details for DB insert
+      vendorPhone: isCustomVendor && customVendorPhone !== "+91" ? customVendorPhone : "",
+      vendorGst: isCustomVendor ? customVendorGst.trim().toUpperCase() : "",
+      vendorPan: isCustomVendor ? customVendorPan.trim().toUpperCase() : "",
+      vendorEmail: isCustomVendor ? customVendorEmail.trim() : "",
+      vendorAddress: isCustomVendor ? customVendorAddress.trim() : "",
     };
 
     onSave(newPurchase);
@@ -279,7 +326,7 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
                     className="df-input mono"
                     placeholder="+91"
                     value={customVendorPhone}
-                    onChange={(e) => setCustomVendorPhone(e.target.value)}
+                    onChange={handlePhoneChange}
                   />
                 </div>
               </div>
@@ -303,8 +350,29 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
                   />
                 </div>
               </div>
+              <div className="df2">
+                <div className="df">
+                  <label className="df-label">Email</label>
+                  <input
+                    className="df-input"
+                    type="email"
+                    placeholder="supplier@mail.com"
+                    value={customVendorEmail}
+                    onChange={(e) => setCustomVendorEmail(e.target.value)}
+                  />
+                </div>
+                <div className="df">
+                  <label className="df-label">Address</label>
+                  <input
+                    className="df-input"
+                    placeholder="Address"
+                    value={customVendorAddress}
+                    onChange={(e) => setCustomVendorAddress(e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
-        )}
+          )}
 
         {/* Batch ID displayed cleanly without an input box (no box and all) */}
         <div className="df" style={{ marginTop: "14px", marginBottom: "14px" }}>
@@ -338,11 +406,11 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
           <div className="df">
             <label className="df-label">Item ID</label>
             <input
-              className="df-input mono"
-              placeholder="e.g. ZRI-GLD-001"
-              value={itemId}
-              onChange={(e) => handleItemIdChange(e.target.value)}
-            />
+            className="df-input mono"
+            value={itemId}
+            readOnly
+            style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
+          />
           </div>
         </div>
 
@@ -356,7 +424,16 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
               onChange={(e) => setInvoice(e.target.value)}
             />
           </div>
-          <div className="df" />
+          <div className="df">
+            <label className="df-label">Freight charges (₹)</label>
+            <input
+              className="df-input mono"
+              type="number"
+              placeholder="0"
+              value={freight}
+              onChange={(e) => setFreight(e.target.value === "" ? "" : Number(e.target.value))}
+            />
+          </div>
         </div>
 
         <div className="df2">
@@ -397,8 +474,7 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
               onChange={(e) => handleGstTypeChange(e.target.value as any)}
             >
               <option value="IGST">IGST</option>
-              <option value="CGST">CGST</option>
-              <option value="SGST">SGST</option>
+              <option value="CGST + SGST">CGST + SGST</option>
             </select>
           </div>
           <div className="df">
@@ -417,9 +493,9 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
                 </>
               ) : (
                 <>
-                  <option value="2.5">2.5%</option>
-                  <option value="9">9%</option>
-                  <option value="20">20%</option>
+                  <option value="5">5% (2.5% + 2.5%)</option>
+                  <option value="18">18% (9% + 9%)</option>
+                  <option value="40">40% (20% + 20%)</option>
                 </>
               )}
             </select>
@@ -427,7 +503,7 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
         </div>
 
           <div className="df-computed-big">
-            <div className="lbl">Total (excl. freight)</div>
+            <div className="lbl">Total Amount</div>
             <div className="val">₹{total.toLocaleString("en-IN")}</div>
             <div className="hint">Freight is added when the purchase is recorded</div>
           </div>

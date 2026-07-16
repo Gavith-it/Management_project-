@@ -89,9 +89,7 @@ export default function PurchasesView({
       <div className="ph">
         <div className="ph-left">
           <h2>Purchases</h2>
-          <p>
-            Orders placed with suppliers. A purchase order is recorded as a purchase when confirmed.
-          </p>
+          <p>Verified and Completed Orders</p>
         </div>
         <button className="btn btn-primary" onClick={onOpenNewPurchase}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -147,7 +145,7 @@ export default function PurchasesView({
                     </span>
                   </div>
                   <div style={{ marginTop: "4px", fontSize: "12.5px", color: "var(--t2)" }}>
-                    Amount: <b style={{ fontFamily: "var(--font-mono)", color: "var(--t1)" }}>₹{totalWithGst.toLocaleString("en-IN")}</b> (excl. freight)
+                    Amount: <b style={{ fontFamily: "var(--font-mono)", color: "var(--t1)" }}>₹{totalWithGst.toLocaleString("en-IN")}</b>
                   </div>
                 </div>
                 <div className="li-right">
