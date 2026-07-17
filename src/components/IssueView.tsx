@@ -14,6 +14,8 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [batchId, setBatchId] = useState("");
   const [marks, setMarks] = useState<number | "">(0);
+  const [bobbinsIssued, setBobbinsIssued] = useState<number | "">(0);
+  const [bobbinWeight, setBobbinWeight] = useState<number | "">(0);
   const [grossWeight, setGrossWeight] = useState<number | "">(0);
   const [crateWeight, setCrateWeight] = useState<number | "">(0);
   const [issuedTo, setIssuedTo] = useState("");
@@ -28,17 +30,25 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
   const totalBobbinsIssued = issues.reduce((acc, curr) => acc + curr.bobbinsIssued, 0);
   const activeIssuesCount = issues.filter(i => i.status === "Active").length;
 
-  // Auto-calculated Bobbins (marks * 4)
-  const bobbinsIssued = (Number(marks) || 0) * 4;
+  // Change handlers to enable edit overrides while retaining auto-calculation link
+  const handleMarksChange = (val: number) => {
+    setMarks(val);
+    const newBobbins = val * 4;
+    setBobbinsIssued(newBobbins);
+    setBobbinWeight(newBobbins * 16);
+  };
 
-  // Auto-calculated Bobbin Weight (bobbins * 16g)
-  const bobbinWeight = bobbinsIssued * 16;
+  const handleBobbinsChange = (val: number) => {
+    setBobbinsIssued(val);
+    setBobbinWeight(val * 16);
+  };
 
   // Auto-calculated Net Weight (gross - crate - bobbin_weight)
   const calculatedNetWeight = (() => {
     const gross = Number(grossWeight) || 0;
     const crate = Number(crateWeight) || 0;
-    const net = gross - crate - bobbinWeight;
+    const bWeight = Number(bobbinWeight) || 0;
+    const net = gross - crate - bWeight;
     return Math.max(0, net);
   })();
 
@@ -50,6 +60,8 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
     }
     setIssueDate(new Date().toISOString().split("T")[0]);
     setMarks(0);
+    setBobbinsIssued(0);
+    setBobbinWeight(0);
     setGrossWeight(0);
     setCrateWeight(0);
     setIssuedTo("");
@@ -81,10 +93,10 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
       id: nextId,
       batchId,
       issueDate,
-      bobbinsIssued,
+      bobbinsIssued: Number(bobbinsIssued) || 0,
       grossWeight: Number(grossWeight),
       crateWeight: Number(crateWeight),
-      bobbinWeight,
+      bobbinWeight: Number(bobbinWeight) || 0,
       netWeight: calculatedNetWeight,
       issuedTo: issuedTo.trim(),
       status: "Active",
@@ -219,7 +231,7 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
                   type="number"
                   placeholder="0"
                   value={marks === 0 ? "" : marks}
-                  onChange={(e) => setMarks(e.target.value === "" ? 0 : Number(e.target.value))}
+                  onChange={(e) => handleMarksChange(e.target.value === "" ? 0 : Number(e.target.value))}
                 />
               </div>
               <div className="df">
@@ -227,9 +239,9 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
                 <input
                   className="df-input"
                   type="number"
-                  readOnly
-                  style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
-                  value={bobbinsIssued}
+                  placeholder="0"
+                  value={bobbinsIssued === 0 ? "" : bobbinsIssued}
+                  onChange={(e) => handleBobbinsChange(e.target.value === "" ? 0 : Number(e.target.value))}
                 />
                 <span className="f-hint">1 mark = 4 bobbins</span>
               </div>
@@ -262,9 +274,9 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
                 <input
                   className="df-input"
                   type="number"
-                  readOnly
-                  style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
-                  value={bobbinWeight}
+                  placeholder="0"
+                  value={bobbinWeight === 0 ? "" : bobbinWeight}
+                  onChange={(e) => setBobbinWeight(e.target.value === "" ? 0 : Number(e.target.value))}
                 />
                 <span className="f-hint">Ref: ~16 g each</span>
               </div>
