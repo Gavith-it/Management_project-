@@ -11,17 +11,43 @@ interface JobCardsViewProps {
 
 export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCardsViewProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [cardDate, setCardDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [issueId, setIssueId] = useState("");
   const [sareeDesign, setSareeDesign] = useState("");
   const [preparationType, setPreparationType] = useState<"Body warp" | "Border warp">("Body warp");
   const [loomNo, setLoomNo] = useState("");
   const [operatorName, setOperatorName] = useState("");
-  const [ends, setEnds] = useState<number | "">(2800);
-  const [lengthMeters, setLengthMeters] = useState<number | "">(120);
+  const [ends, setEnds] = useState<number | "">(0);
+  const [lengthMeters, setLengthMeters] = useState<number | "">(0);
   const [errorMsg, setErrorMsg] = useState("");
 
   // Only active issues are eligible for new job cards
   const activeIssues = issues.filter(i => i.status === "Active");
+
+  // Calculate dynamic stats based on selected issueId
+  const selectedIssue = issues.find(i => i.id === issueId);
+  const issuedKg = selectedIssue ? selectedIssue.netWeight / 1000 : 0;
+  
+  const linkedJcs = jobCards.filter(jc => jc.issueId === issueId);
+  const consumedG = linkedJcs.reduce((acc, jc) => acc + ((jc.ends * jc.lengthMeters) / 68), 0);
+  const consumedKg = consumedG / 1000;
+  
+  const remainingKg = Math.max(0, issuedKg - consumedKg);
+  const jobCardsCount = linkedJcs.length;
+
+  // Auto-calculated Estimated Consumption (ends * length / 68)
+  const calculatedEstConsumption = (() => {
+    const numEnds = Number(ends) || 0;
+    const numLen = Number(lengthMeters) || 0;
+    return Math.round((numEnds * numLen) / 68);
+  })();
+
+  const getNextJobCardId = () => {
+    const nextNum = jobCards.length > 0 
+      ? Math.max(...jobCards.map(jc => parseInt(jc.id.replace("JC-", ""), 10) || 0)) + 1 
+      : 1;
+    return `JC-${String(nextNum).padStart(4, "0")}`;
+  };
 
   const handleOpen = () => {
     if (activeIssues.length > 0) {
@@ -29,12 +55,13 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
     } else {
       setIssueId("");
     }
+    setCardDate(new Date().toISOString().split("T")[0]);
     setSareeDesign("");
     setPreparationType("Body warp");
     setLoomNo("");
     setOperatorName("");
-    setEnds(2800);
-    setLengthMeters(120);
+    setEnds(0);
+    setLengthMeters(0);
     setErrorMsg("");
     setIsOpen(true);
   };
@@ -53,7 +80,7 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
       return;
     }
     if (!operatorName.trim()) {
-      setErrorMsg("Please enter the weaver name.");
+      setErrorMsg("Please enter the operator name.");
       return;
     }
     if (Number(ends) <= 0 || Number(lengthMeters) <= 0) {
@@ -61,15 +88,12 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
       return;
     }
 
-    const nextNum = jobCards.length > 0 
-      ? Math.max(...jobCards.map(jc => parseInt(jc.id.replace("JC-", ""), 10) || 0)) + 1 
-      : 1;
-    const nextId = `JC-${String(nextNum).padStart(4, "0")}`;
+    const nextId = getNextJobCardId();
 
     const newJobCard: JobCard = {
       id: nextId,
       issueId,
-      cardDate: new Date().toISOString().split("T")[0],
+      cardDate,
       sareeDesign: sareeDesign.trim(),
       preparationType,
       loomNo: loomNo.trim(),
@@ -136,8 +160,8 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
       <div className={`overlay ${isOpen ? "open" : ""}`} onClick={() => setIsOpen(false)}>
         <div className="drawer" onClick={(e) => e.stopPropagation()}>
           <div className="dh">
-            <div className="dh-title">New Job Card</div>
-            <button className="btn btn-outline" style={{ padding: "4px 8px" }} onClick={() => setIsOpen(false)}>Close</button>
+            <div className="dh-title">New job card</div>
+            <button className="btn btn-outline" style={{ padding: "4px 8px" }} onClick={() => setIsOpen(false)}>×</button>
           </div>
 
           <div className="db">
@@ -147,8 +171,30 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
               </div>
             )}
 
+            <div className="df2">
+              <div className="df">
+                <label className="df-label">Job card no.</label>
+                <input
+                  className="df-input mono"
+                  type="text"
+                  readOnly
+                  style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
+                  value={isOpen ? getNextJobCardId() : ""}
+                />
+              </div>
+              <div className="df">
+                <label className="df-label">Date</label>
+                <input
+                  className="df-input"
+                  type="date"
+                  value={cardDate}
+                  onChange={(e) => setCardDate(e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="df">
-              <label className="df-label">Select Active Issue</label>
+              <label className="df-label">Issued batch</label>
               {activeIssues.length === 0 ? (
                 <div style={{ color: "var(--danger)", fontSize: "13px" }}>
                   No active issues available! Please issue material first in the &quot;Issue to production&quot; tab.
@@ -161,26 +207,55 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
                 >
                   {activeIssues.map((i) => (
                     <option key={i.id} value={i.id}>
-                      {i.id} - Issued to {i.issuedTo} (Batch: {i.batchId}, {i.netWeight}g net)
+                      {i.id} &middot; {i.batchId} &middot; {(i.netWeight / 1000).toFixed(3)} kg issued
                     </option>
                   ))}
                 </select>
               )}
             </div>
 
-            <div className="df">
-              <label className="df-label">Saree Design Name</label>
-              <input
-                className="df-input"
-                placeholder="e.g. Kanjivaram Peacock Motif"
-                value={sareeDesign}
-                onChange={(e) => setSareeDesign(e.target.value)}
-              />
+            {/* Dynamic Stats Panel Container */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "8px",
+              padding: "12px 14px",
+              backgroundColor: "#F1F3F9",
+              borderRadius: "var(--r-sm)",
+              marginBottom: "14px",
+              marginTop: "4px"
+            }}>
+              <div>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--t3)", marginBottom: "4px" }}>Issued</div>
+                <div style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--t1)", fontFamily: "var(--font-mono)" }}>{issuedKg.toFixed(3)} kg</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--t3)", marginBottom: "4px" }}>Consumed</div>
+                <div style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--t1)", fontFamily: "var(--font-mono)" }}>{consumedKg.toFixed(3)} kg</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--t3)", marginBottom: "4px" }}>Remaining</div>
+                <div style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--t1)", fontFamily: "var(--font-mono)" }}>{remainingKg.toFixed(3)} kg</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--t3)", marginBottom: "4px" }}>Job Cards</div>
+                <div style={{ fontSize: "13.5px", fontWeight: 800, color: "var(--t1)", fontFamily: "var(--font-mono)" }}>{jobCardsCount}</div>
+              </div>
             </div>
 
+            <div className="dh-sep">Setup</div>
             <div className="df2">
               <div className="df">
-                <label className="df-label">Weave Preparation Type</label>
+                <label className="df-label">Saree design</label>
+                <input
+                  className="df-input"
+                  placeholder="e.g. Kanjivaram Peacock"
+                  value={sareeDesign}
+                  onChange={(e) => setSareeDesign(e.target.value)}
+                />
+              </div>
+              <div className="df">
+                <label className="df-label">Preparation type</label>
                 <select
                   className="df-input"
                   value={preparationType}
@@ -190,25 +265,39 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
                   <option value="Border warp">Border warp</option>
                 </select>
               </div>
-              <div className="df">
-                <label className="df-label">Loom No.</label>
-                <input
-                  className="df-input"
-                  placeholder="e.g. Loom 3"
-                  value={loomNo}
-                  onChange={(e) => setLoomNo(e.target.value)}
-                />
-              </div>
             </div>
 
             <div className="df2">
               <div className="df">
-                <label className="df-label">Ends Count</label>
+                <label className="df-label">Loom no.</label>
+                <input
+                  className="df-input"
+                  placeholder="e.g. Loom 6"
+                  value={loomNo}
+                  onChange={(e) => setLoomNo(e.target.value)}
+                />
+              </div>
+              <div className="df">
+                <label className="df-label">Operator</label>
+                <input
+                  className="df-input"
+                  placeholder="Operator name"
+                  value={operatorName}
+                  onChange={(e) => setOperatorName(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="dh-sep">Warp Parameters</div>
+            <div className="df2">
+              <div className="df">
+                <label className="df-label">Number of ends</label>
                 <input
                   className="df-input"
                   type="number"
-                  value={ends}
-                  onChange={(e) => setEnds(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder="0"
+                  value={ends === 0 ? "" : ends}
+                  onChange={(e) => setEnds(e.target.value === "" ? 0 : Number(e.target.value))}
                 />
               </div>
               <div className="df">
@@ -216,27 +305,30 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
                 <input
                   className="df-input"
                   type="number"
-                  value={lengthMeters}
-                  onChange={(e) => setLengthMeters(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder="0"
+                  value={lengthMeters === 0 ? "" : lengthMeters}
+                  onChange={(e) => setLengthMeters(e.target.value === "" ? 0 : Number(e.target.value))}
                 />
               </div>
             </div>
 
-            <div className="df">
-              <label className="df-label">Weaver Name (Operator)</label>
-              <input
-                className="df-input"
-                placeholder="e.g. Ramesh K."
-                value={operatorName}
-                onChange={(e) => setOperatorName(e.target.value)}
-              />
+            <div className="df-computed-big" style={{ backgroundColor: "#FDF8ED", border: "1.5px solid #F6E2BC" }}>
+              <div className="lbl" style={{ color: "#A87D2E", fontWeight: 700, fontSize: "11px", textTransform: "uppercase" }}>
+                Estimated Consumption (Ends × Length ÷ 68)
+              </div>
+              <div className="val" style={{ color: "#8E6015", fontSize: "28px", fontWeight: 800, marginTop: "4px" }}>
+                {calculatedEstConsumption.toLocaleString("en-IN")} g
+              </div>
+              <div className="hint" style={{ color: "#A87D2E", fontSize: "12px", marginTop: "2px" }}>
+                This is a guide only. Actual figure comes from the warping log.
+              </div>
             </div>
           </div>
 
-          <div className="ds">
-            <button className="btn btn-outline" onClick={() => setIsOpen(false)}>Cancel</button>
+          <div className="ds" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", padding: "16px 20px" }}>
+            <button className="btn btn-outline" onClick={() => setIsOpen(false)}>Save draft</button>
             <button className="btn btn-primary" onClick={handleSave} disabled={activeIssues.length === 0}>
-              Create Card
+              Save job card
             </button>
           </div>
         </div>
