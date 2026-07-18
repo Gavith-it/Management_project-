@@ -61,6 +61,7 @@ create table public.job_cards (
     operator_name text not null,
     ends integer not null check (ends > 0),
     length_meters numeric(10, 2) not null check (length_meters > 0),
+    warp_width numeric(10, 2),
     status text not null default 'In progress' check (status in ('In progress', 'Pending Warp', 'Needs Review', 'Completed')),
     created_at timestamptz not null default now()
 );
@@ -151,3 +152,6 @@ create policy "Users can read reconciliations" on public.reconciliations
 
 create policy "Admins can manage reconciliations" on public.reconciliations
     for all using (public.get_user_role() = 'admin');
+
+-- Migration: Add warp_width to public.job_cards
+ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS warp_width numeric(10, 2);

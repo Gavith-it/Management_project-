@@ -6,11 +6,23 @@ import { MaterialIssue } from "@/utils/supabaseService";
 interface IssueViewProps {
   issues: MaterialIssue[];
   purchases: any[];
+  jobCards: any[];
+  warpingLogs: any[];
   onSaveIssue: (issue: MaterialIssue) => void;
+  onNewJobCard: (issueId: string) => void;
 }
 
-export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewProps) {
+export default function IssueView({ 
+  issues, 
+  purchases, 
+  jobCards, 
+  warpingLogs, 
+  onSaveIssue,
+  onNewJobCard
+}: IssueViewProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [batchId, setBatchId] = useState("");
   const [marks, setMarks] = useState<number | "">(0);
@@ -22,15 +34,26 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
   const [remarks, setRemarks] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Filter purchases that are recorded and have batch IDs
   const recordedPurchases = purchases.filter((p: any) => p.status === "Recorded");
 
-  // Calculate dynamic stats
-  const availableBatchesCount = recordedPurchases.length;
-  const totalBobbinsIssued = issues.reduce((acc, curr) => acc + curr.bobbinsIssued, 0);
-  const activeIssuesCount = issues.filter(i => i.status === "Active").length;
+  // Calculate global page statistics
+  const todayStr = new Date().toISOString().split("T")[0];
+  const currentMonthStr = todayStr.substring(0, 7); // e.g. "2026-07"
 
-  // Change handlers to enable edit overrides while retaining auto-calculation link
+  // 1. Available to issue
+  const availableToIssueKg = recordedPurchases.reduce((acc, p) => acc + (Number(p.marks) || 0) * 0.12, 0);
+
+  // 2. Issued Today
+  const issuedTodayKg = issues
+    .filter(i => i.issueDate === todayStr)
+    .reduce((acc, i) => acc + i.netWeight, 0) / 1000;
+
+  // 3. This Month
+  const issuedThisMonthKg = issues
+    .filter(i => i.issueDate.startsWith(currentMonthStr))
+    .reduce((acc, i) => acc + i.netWeight, 0) / 1000;
+
+  // Bobbins automatic count
   const handleMarksChange = (val: number) => {
     setMarks(val);
     const newBobbins = val * 4;
@@ -43,7 +66,6 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
     setBobbinWeight(val * 16);
   };
 
-  // Auto-calculated Net Weight (gross - crate - bobbin_weight)
   const calculatedNetWeight = (() => {
     const gross = Number(grossWeight) || 0;
     const crate = Number(crateWeight) || 0;
@@ -107,6 +129,112 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
     setIsOpen(false);
   };
 
+  // IF AN ISSUE IS SELECTED, RENDER THE ISSUE DETAIL VIEW
+  if (selectedIssueId) {
+    const issue = issues.find(i => i.id === selectedIssueId);
+    if (!issue) {
+      setSelectedIssueId(null);
+      return null;
+    }
+
+    const purchase = purchases.find(p => p.batch === issue.batchId);
+    const supplierName = purchase ? purchase.vendor : "Unknown Vendor";
+
+    // Linked Job cards and logs
+    const linkedJcs = jobCards.filter(jc => jc.issueId === issue.id);
+    const issueWarpLogs = warpingLogs.filter(log => linkedJcs.some(jc => jc.id === log.jobCardId));
+    
+    const issuedKg = issue.netWeight / 1000;
+    const consumedG = issueWarpLogs.reduce((acc, log) => acc + log.netWarpWeight, 0);
+    const consumedKg = consumedG / 1000;
+    const remainingKg = Math.max(0, issuedKg - consumedKg);
+    const jobCardsCount = linkedJcs.length;
+
+    return (
+      <div className="page on">
+        <div className="ph" style={{ borderBottom: "1px solid var(--line)", paddingBottom: "16px", marginBottom: "20px" }}>
+          <div className="ph-left">
+            <span style={{ fontSize: "12px", color: "var(--t3)", textTransform: "uppercase", fontWeight: 700 }}>Issue detail</span>
+            <h2 style={{ fontSize: "28px", fontWeight: 800, marginTop: "4px", color: "var(--navy)" }}>{issue.id}</h2>
+            <p style={{ fontSize: "14px", color: "var(--t2)", marginTop: "4px" }}>
+              {supplierName} &middot; Batch {issue.batchId} &middot; {issue.issueDate} &middot; Issued to: <b>{issue.issuedTo}</b>
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button className="btn btn-outline" style={{ display: "flex", alignItems: "center", gap: "4px" }} onClick={() => setSelectedIssueId(null)}>
+              &larr; Back
+            </button>
+            <button className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: "4px" }} onClick={() => onNewJobCard(issue.id)}>
+              + New job card
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div className="stat-row s4" style={{ marginBottom: "24px" }}>
+          <div className="stat-box">
+            <div className="lbl">Issued</div>
+            <div className="val">{issuedKg.toFixed(3)} kg</div>
+          </div>
+          <div className="stat-box">
+            <div className="lbl">Consumed</div>
+            <div className="val">{consumedKg.toFixed(3)} kg</div>
+          </div>
+          <div className="stat-box">
+            <div className="lbl">Remaining</div>
+            <div className="val">{remainingKg.toFixed(3)} kg</div>
+          </div>
+          <div className="stat-box">
+            <div className="lbl">Job Cards</div>
+            <div className="val" style={{ fontSize: "28px" }}>{jobCardsCount}</div>
+          </div>
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--navy)", marginBottom: "12px" }}>
+          Job cards on this issue
+        </div>
+
+        <div className="list">
+          {linkedJcs.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", padding: "30px", color: "var(--t3)", fontSize: "13.5px" }}>
+              No job cards currently allocated to this issue. Click &quot;+ New job card&quot; to start.
+            </div>
+          ) : (
+            linkedJcs.map((jc) => {
+              const log = warpingLogs.find(l => l.jobCardId === jc.id);
+              const netUsedG = log ? log.netWarpWeight : 0;
+              return (
+                <div className="list-item" key={jc.id} style={{ cursor: "default", padding: "14px 18px" }}>
+                  <div className="li-left">
+                    <div className="li-id" style={{ color: "var(--brand)", fontWeight: 700 }}>{jc.id}</div>
+                    <div className="li-sub" style={{ marginTop: "2px" }}>
+                      <b>{jc.preparationType}</b> &middot; Loom {jc.loomNo} &middot; {jc.sareeDesign}
+                    </div>
+                    <div className="li-meta" style={{ marginTop: "4px" }}>
+                      <span>Net used: <b>{netUsedG.toLocaleString("en-IN")} g</b></span>
+                      <span>Weaver: <b>{jc.operatorName}</b></span>
+                      <span>Ends: <b>{jc.ends.toLocaleString()}</b> &middot; Length: <b>{jc.lengthMeters}m</b></span>
+                    </div>
+                  </div>
+                  <div className="li-right">
+                    <span className={`bdg ${
+                      jc.status === "In progress" ? "bdg-ok" :
+                      jc.status === "Pending Warp" ? "bdg-warn" :
+                      jc.status === "Completed" ? "bdg-gray" : "bdg-danger"
+                    }`}>
+                      {jc.status}
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // DEFAULT LIST VIEW (Issue to production main dashboard)
   return (
     <div className="page on">
       <div className="ph">
@@ -124,32 +252,23 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
         </button>
       </div>
 
-      <div className="stat-row s3" style={{ marginBottom: "12px" }}>
+      <div className="stat-row s3" style={{ marginBottom: "16px" }}>
         <div className="stat-box">
-          <div className="lbl">Available Batches</div>
-          <div className="val">{availableBatchesCount} batches</div>
+          <div className="lbl">Available to issue</div>
+          <div className="val">{availableToIssueKg.toFixed(1)} kg</div>
           <div className="sub">Recorded in inventory</div>
         </div>
         <div className="stat-box">
-          <div className="lbl">Active issues</div>
-          <div className="val">{activeIssuesCount} runs</div>
-          <div className="sub">Currently in production</div>
+          <div className="lbl">Issued Today</div>
+          <div className="val">{issuedTodayKg.toFixed(1)} kg</div>
+          <div className="sub">Today&apos;s warp runs</div>
         </div>
         <div className="stat-box">
-          <div className="lbl">Total Issued</div>
-          <div className="val">{totalBobbinsIssued} bobbins</div>
-          <div className="sub">Cumulative bobbins issued</div>
+          <div className="lbl">This Month</div>
+          <div className="val">{issuedThisMonthKg.toFixed(1)} kg</div>
+          <div className="sub">Monthly production runs</div>
         </div>
       </div>
-
-      {recordedPurchases.length > 0 && (
-        <div className="card" style={{ marginBottom: "18px" }}>
-          <div style={{ fontWeight: 700, fontSize: "13px", marginBottom: "8px" }}>Latest Approved Batch</div>
-          <div style={{ fontSize: "13.5px", color: "var(--t2)" }}>
-            Batch <b>{recordedPurchases[0].batch}</b> ({recordedPurchases[0].vendor}) &middot; {recordedPurchases[0].marks} marks.
-          </div>
-        </div>
-      )}
 
       <div className="list">
         {issues.length === 0 ? (
@@ -157,25 +276,49 @@ export default function IssueView({ issues, purchases, onSaveIssue }: IssueViewP
             No material issues logged yet. Click &quot;Issue material&quot; to start.
           </div>
         ) : (
-          issues.map((issue) => (
-            <div className="list-item" key={issue.id} style={{ cursor: "default" }}>
-              <div className="li-left">
-                <div className="li-id" style={{ color: "var(--brand)", fontWeight: 700 }}>{issue.id}</div>
-                <div className="li-sub">
-                  Issued to <b>{issue.issuedTo}</b> &middot; Batch <b>{issue.batchId}</b> &middot; {issue.bobbinsIssued} bobbins ({issue.netWeight}g net)
+          issues.map((issue) => {
+            const purchase = purchases.find(p => p.batch === issue.batchId);
+            const vendorName = purchase ? purchase.vendor : "Unknown Supplier";
+
+            const linkedJcs = jobCards.filter(jc => jc.issueId === issue.id);
+            const issueWarpLogs = warpingLogs.filter(log => linkedJcs.some(jc => jc.id === log.jobCardId));
+            
+            const issuedKg = issue.netWeight / 1000;
+            const consumedG = issueWarpLogs.reduce((acc, log) => acc + log.netWarpWeight, 0);
+            const consumedKg = consumedG / 1000;
+            const remainingKg = Math.max(0, issuedKg - consumedKg);
+            const jobCardsCount = linkedJcs.length;
+
+            return (
+              <div 
+                className="list-item" 
+                key={issue.id} 
+                style={{ cursor: "pointer", padding: "16px 20px" }}
+                onClick={() => setSelectedIssueId(issue.id)}
+              >
+                <div className="li-left">
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "15px", fontWeight: 800, color: "var(--navy)" }}>
+                      {issue.id} &middot; {issue.batchId}
+                    </span>
+                  </div>
+                  <div className="li-sub" style={{ marginTop: "4px", fontSize: "13.5px" }}>
+                    {vendorName} &middot; {issue.issueDate} &middot; <b>{jobCardsCount} job card{jobCardsCount !== 1 && "s"}</b>
+                  </div>
+                  <div style={{ marginTop: "6px", fontSize: "13px", color: "var(--t2)", fontFamily: "var(--font-mono)" }}>
+                    Issued <b>{issuedKg.toFixed(3)} kg</b> &nbsp;&middot;&nbsp; 
+                    Consumed <b>{consumedKg.toFixed(3)} kg</b> &nbsp;&middot;&nbsp; 
+                    Remaining <b>{remainingKg.toFixed(3)} kg</b>
+                  </div>
                 </div>
-                <div className="li-meta">
-                  <span>Date: <b>{issue.issueDate}</b></span>
-                  {issue.remarks && <span>Remarks: <i>{issue.remarks}</i></span>}
+                <div className="li-right">
+                  <span className={`bdg ${issue.status === "Active" ? "bdg-ok" : "bdg-gray"}`}>
+                    {issue.status}
+                  </span>
                 </div>
               </div>
-              <div className="li-right">
-                <span className={`bdg ${issue.status === "Active" ? "bdg-ok" : "bdg-gray"}`}>
-                  {issue.status}
-                </span>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

@@ -1,15 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { JobCard, MaterialIssue } from "@/utils/supabaseService";
 
 interface JobCardsViewProps {
   jobCards: JobCard[];
   issues: MaterialIssue[];
   onSaveJobCard: (jc: JobCard) => void;
+  preselectedIssueId?: string | null;
+  clearPreselectedIssueId?: () => void;
+  openDrawerOnMount?: boolean;
+  clearOpenDrawerOnMount?: () => void;
 }
 
-export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCardsViewProps) {
+export default function JobCardsView({ 
+  jobCards, 
+  issues, 
+  onSaveJobCard,
+  preselectedIssueId,
+  clearPreselectedIssueId,
+  openDrawerOnMount,
+  clearOpenDrawerOnMount
+}: JobCardsViewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [cardDate, setCardDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [issueId, setIssueId] = useState("");
@@ -19,7 +31,28 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
   const [operatorName, setOperatorName] = useState("");
   const [ends, setEnds] = useState<number | "">(0);
   const [lengthMeters, setLengthMeters] = useState<number | "">(0);
+  const [warpWidth, setWarpWidth] = useState<number | "">(0);
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (openDrawerOnMount) {
+      if (preselectedIssueId) {
+        setIssueId(preselectedIssueId);
+      }
+      setCardDate(new Date().toISOString().split("T")[0]);
+      setSareeDesign("");
+      setPreparationType("Body warp");
+      setLoomNo("");
+      setOperatorName("");
+      setEnds(0);
+      setLengthMeters(0);
+      setWarpWidth(0);
+      setErrorMsg("");
+      setIsOpen(true);
+      if (clearOpenDrawerOnMount) clearOpenDrawerOnMount();
+      if (clearPreselectedIssueId) clearPreselectedIssueId();
+    }
+  }, [openDrawerOnMount, preselectedIssueId, clearOpenDrawerOnMount, clearPreselectedIssueId]);
 
   // Only active issues are eligible for new job cards
   const activeIssues = issues.filter(i => i.status === "Active");
@@ -62,6 +95,7 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
     setOperatorName("");
     setEnds(0);
     setLengthMeters(0);
+    setWarpWidth(0);
     setErrorMsg("");
     setIsOpen(true);
   };
@@ -100,6 +134,7 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
       operatorName: operatorName.trim(),
       ends: Number(ends),
       lengthMeters: Number(lengthMeters),
+      warpWidth: Number(warpWidth) || undefined,
       status: "In progress"
     };
 
@@ -138,7 +173,10 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
                 <div className="li-meta">
                   <span>Linked Issue: <b>{jc.issueId}</b></span>
                   <span>Type: <b>{jc.preparationType}</b></span>
-                  <span>Ends: <b>{jc.ends.toLocaleString()}</b> &middot; Length: <b>{jc.lengthMeters}m</b></span>
+                  <span>
+                    Ends: <b>{jc.ends.toLocaleString()}</b> &middot; Length: <b>{jc.lengthMeters}m</b>
+                    {jc.warpWidth !== undefined && jc.warpWidth > 0 && <> &middot; Width: <b>{jc.warpWidth}</b></>}
+                  </span>
                   <span>Date: <b>{jc.cardDate}</b></span>
                 </div>
               </div>
@@ -159,8 +197,15 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
       {/* NEW JOB CARD FORM DRAWER */}
       <div className={`overlay ${isOpen ? "open" : ""}`} onClick={() => setIsOpen(false)}>
         <div className="drawer" onClick={(e) => e.stopPropagation()}>
-          <div className="dh">
-            <div className="dh-title">New job card</div>
+          <div className="dh" style={{ gap: "10px", alignItems: "center" }}>
+            <div className="dh-title" style={{ flex: 1 }}>New job card</div>
+            <input 
+              type="date"
+              className="df-input"
+              style={{ width: "140px", padding: "6px 10px", fontSize: "13px" }}
+              value={cardDate}
+              onChange={(e) => setCardDate(e.target.value)}
+            />
             <button className="btn btn-outline" style={{ padding: "4px 8px" }} onClick={() => setIsOpen(false)}>×</button>
           </div>
 
@@ -171,26 +216,15 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
               </div>
             )}
 
-            <div className="df2">
-              <div className="df">
-                <label className="df-label">Job card no.</label>
-                <input
-                  className="df-input mono"
-                  type="text"
-                  readOnly
-                  style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
-                  value={isOpen ? getNextJobCardId() : ""}
-                />
-              </div>
-              <div className="df">
-                <label className="df-label">Date</label>
-                <input
-                  className="df-input"
-                  type="date"
-                  value={cardDate}
-                  onChange={(e) => setCardDate(e.target.value)}
-                />
-              </div>
+            <div className="df">
+              <label className="df-label">Job card no.</label>
+              <input
+                className="df-input mono"
+                type="text"
+                readOnly
+                style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
+                value={isOpen ? getNextJobCardId() : ""}
+              />
             </div>
 
             <div className="df">
@@ -289,7 +323,7 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
             </div>
 
             <div className="dh-sep">Warp Parameters</div>
-            <div className="df2">
+            <div className="df3">
               <div className="df">
                 <label className="df-label">Number of ends</label>
                 <input
@@ -308,6 +342,16 @@ export default function JobCardsView({ jobCards, issues, onSaveJobCard }: JobCar
                   placeholder="0"
                   value={lengthMeters === 0 ? "" : lengthMeters}
                   onChange={(e) => setLengthMeters(e.target.value === "" ? 0 : Number(e.target.value))}
+                />
+              </div>
+              <div className="df">
+                <label className="df-label">Warp width</label>
+                <input
+                  className="df-input"
+                  type="number"
+                  placeholder="0"
+                  value={warpWidth === 0 ? "" : warpWidth}
+                  onChange={(e) => setWarpWidth(e.target.value === "" ? 0 : Number(e.target.value))}
                 />
               </div>
             </div>

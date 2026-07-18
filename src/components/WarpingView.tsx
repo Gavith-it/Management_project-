@@ -19,6 +19,8 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
   // Before Winding Weights
   const [bobbinsCount, setBobbinsCount] = useState<number | "">(0);
   const [newspaperWeight, setNewspaperWeight] = useState<number | "">(0);
+  const [fruityPaperWeight, setFruityPaperWeight] = useState<number | "">(0);
+  const [emptyBeanWeight, setEmptyBeanWeight] = useState<number | "">(0);
 
   // After Winding Weights
   const [grossWeight, setGrossWeight] = useState<number | "">(0);
@@ -44,6 +46,8 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
     setOperatorName("");
     setBobbinsCount(0);
     setNewspaperWeight(0);
+    setFruityPaperWeight(0);
+    setEmptyBeanWeight(0);
     setGrossWeight(0);
     setWastageWeight(0);
     setLeftoverZari(0);
@@ -61,6 +65,8 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
     setOperatorName("");
     setBobbinsCount(0);
     setNewspaperWeight(0);
+    setFruityPaperWeight(0);
+    setEmptyBeanWeight(0);
     setGrossWeight(0);
     setWastageWeight(0);
     setLeftoverZari(0);
@@ -73,7 +79,7 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
 
   // Calculations
   const emptyBobbinsTotal = (Number(bobbinsCount) || 0) * 16;
-  const totalDeductions = emptyBobbinsTotal + (Number(newspaperWeight) || 0) + (Number(wastageWeight) || 0) + (Number(leftoverZari) || 0);
+  const totalDeductions = (Number(emptyBeanWeight) || 0) + (Number(newspaperWeight) || 0) + (Number(fruityPaperWeight) || 0);
   const netZariConsumed = (() => {
     const gross = Number(grossWeight) || 0;
     return Math.max(0, gross - totalDeductions);
@@ -139,12 +145,21 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
         ) : (
           activeJobCards.map((jc) => {
             const startWeight = getStartingWeight(jc.id);
+            const isBorder = jc.preparationType === "Border warp";
+            
+            // Custom theme styles for each preparation type
+            const cardBorder = isBorder ? "1px solid rgba(168, 125, 46, 0.25)" : "1px solid rgba(29, 58, 36, 0.2)";
+            const headBg = isBorder ? "#FAF5EA" : "#EDF3EF";
+            const headBorder = isBorder ? "1px solid rgba(168, 125, 46, 0.2)" : "1px solid rgba(29, 58, 36, 0.15)";
+            const tagClass = isBorder ? "wc-tag wc-border-tag" : "wc-tag wc-body-tag";
+            const tagLabel = isBorder ? "Border warp" : "Body warp";
+
             return (
-              <div className="warp-card" key={jc.id}>
-                <div className="wc-head">
+              <div className="warp-card" key={jc.id} style={{ border: cardBorder }}>
+                <div className="wc-head" style={{ backgroundColor: headBg, borderBottom: headBorder }}>
                   <div>
                     <span style={{ fontSize: "14px", fontWeight: 700 }}>{jc.id} &middot; {jc.preparationType}</span>
-                    <span className="wc-tag wc-body-tag">In winding</span>
+                    <span className={tagClass} style={{ marginLeft: "10px" }}>{tagLabel}</span>
                   </div>
                   <div style={{ fontSize: "12.5px", color: "var(--t2)" }}>
                     Loom: <b>{jc.loomNo}</b> &middot; Weaver: <b>{jc.operatorName}</b>
@@ -294,14 +309,36 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
                 <span className="f-hint">Count × 16 g</span>
               </div>
             </div>
+            <div className="df2">
+              <div className="df">
+                <label className="df-label">Newspaper (g)</label>
+                <input
+                  className="df-input"
+                  type="number"
+                  placeholder="0"
+                  value={newspaperWeight === 0 ? "" : newspaperWeight}
+                  onChange={(e) => setNewspaperWeight(e.target.value === "" ? 0 : Number(e.target.value))}
+                />
+              </div>
+              <div className="df">
+                <label className="df-label">Fruity paper (g)</label>
+                <input
+                  className="df-input"
+                  type="number"
+                  placeholder="0"
+                  value={fruityPaperWeight === 0 ? "" : fruityPaperWeight}
+                  onChange={(e) => setFruityPaperWeight(e.target.value === "" ? 0 : Number(e.target.value))}
+                />
+              </div>
+            </div>
             <div className="df">
-              <label className="df-label">Newspaper (g)</label>
+              <label className="df-label">Empty bean weight (g)</label>
               <input
                 className="df-input"
                 type="number"
                 placeholder="0"
-                value={newspaperWeight === 0 ? "" : newspaperWeight}
-                onChange={(e) => setNewspaperWeight(e.target.value === "" ? 0 : Number(e.target.value))}
+                value={emptyBeanWeight === 0 ? "" : emptyBeanWeight}
+                onChange={(e) => setEmptyBeanWeight(e.target.value === "" ? 0 : Number(e.target.value))}
               />
             </div>
 

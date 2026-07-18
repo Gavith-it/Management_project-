@@ -204,6 +204,7 @@ export interface JobCard {
   operatorName: string;
   ends: number;
   lengthMeters: number;
+  warpWidth?: number; // Added field
   status: string; // 'In progress' | 'Pending Warp' | 'Needs Review' | 'Completed'
 }
 
@@ -255,6 +256,7 @@ function mapRowToJobCard(row: any): JobCard {
     operatorName: row.operator_name,
     ends: Number(row.ends),
     lengthMeters: Number(row.length_meters),
+    warpWidth: row.warp_width ? Number(row.warp_width) : undefined,
     status: row.status,
   };
 }
@@ -360,6 +362,7 @@ export async function saveJobCard(jc: JobCard): Promise<boolean> {
       operator_name: jc.operatorName,
       ends: jc.ends,
       length_meters: jc.lengthMeters,
+      warp_width: jc.warpWidth || null,
       status: jc.status,
     };
     const { error } = await supabase.from("job_cards").insert(dbJc);

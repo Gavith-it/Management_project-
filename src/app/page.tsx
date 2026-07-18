@@ -233,6 +233,14 @@ export default function Home() {
   const [reconciliations, setReconciliations] = useLocalStorage<Reconciliation[]>("maradi_reconciliations_v1", INITIAL_RECONCILIATIONS);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [preselectedIssueId, setPreselectedIssueId] = useState<string | null>(null);
+  const [shouldOpenJobCardDrawer, setShouldOpenJobCardDrawer] = useState(false);
+
+  const handleNewJobCardFromIssue = (issueId: string) => {
+    setPreselectedIssueId(issueId);
+    setShouldOpenJobCardDrawer(true);
+    setActiveView("jobcards");
+  };
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   // Sync auth state and purchases on mount
@@ -423,7 +431,10 @@ export default function Home() {
           <IssueView
             issues={materialIssues}
             purchases={purchases}
+            jobCards={jobCards}
+            warpingLogs={warpingLogs}
             onSaveIssue={handleSaveMaterialIssue}
+            onNewJobCard={handleNewJobCardFromIssue}
           />
         )}
 
@@ -432,6 +443,10 @@ export default function Home() {
             jobCards={jobCards}
             issues={materialIssues}
             onSaveJobCard={handleSaveJobCard}
+            preselectedIssueId={preselectedIssueId}
+            clearPreselectedIssueId={() => setPreselectedIssueId(null)}
+            openDrawerOnMount={shouldOpenJobCardDrawer}
+            clearOpenDrawerOnMount={() => setShouldOpenJobCardDrawer(false)}
           />
         )}
 
