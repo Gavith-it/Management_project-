@@ -153,5 +153,7 @@ create policy "Users can read reconciliations" on public.reconciliations
 create policy "Admins can manage reconciliations" on public.reconciliations
     for all using (public.get_user_role() = 'admin');
 
--- Migration: Add warp_width to public.job_cards
+-- Migration: Add warp_width, wastage_g, and leftover_zari_g to public.job_cards
 ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS warp_width numeric(10, 2);
+ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS wastage_g numeric(10, 2) default 0.00 check (wastage_g >= 0);
+ALTER TABLE public.job_cards ADD COLUMN IF NOT EXISTS leftover_zari_g numeric(10, 2) default 0.00 check (leftover_zari_g >= 0);

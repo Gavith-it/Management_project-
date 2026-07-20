@@ -1,24 +1,67 @@
 "use client";
 
 import React from "react";
-import { Reconciliation } from "@/utils/supabaseService";
+import { Reconciliation, JobCard, WarpingLog } from "@/utils/supabaseService";
 
 interface ReconciliationViewProps {
   reconciliations: Reconciliation[];
+  jobCards: JobCard[];
+  warpingLogs: WarpingLog[];
 }
 
-export default function ReconciliationView({ reconciliations }: ReconciliationViewProps) {
+export default function ReconciliationView({
+  reconciliations,
+  jobCards,
+  warpingLogs,
+}: ReconciliationViewProps) {
+  // Compute accurate real-time reconciliations from warped job cards
+  const computedRecons: Reconciliation[] = jobCards
+    .filter((jc) => jc.status === "Needs Review" || jc.status === "Completed")
+    .map((jc) => {
+      const log = warpingLogs.find((w) => w.jobCardId === jc.id);
+
+      const estimatedIssuedG = Math.round(((jc.ends * 2) * jc.lengthMeters) / 68);
+      const netUsedG = log ? log.netWarpWeight : 0;
+      const wastageG = (Number(jc.wastage) || 0) + (Number(jc.leftoverZari) || 0);
+      const totalActualG = netUsedG + wastageG;
+
+      const diff = totalActualG - estimatedIssuedG;
+      const lossPercentage = estimatedIssuedG > 0
+        ? Number(((diff / estimatedIssuedG) * 100).toFixed(1))
+        : 0;
+
+      let status: "Within tolerance" | "Minor deviation" | "Needs investigation" = "Within tolerance";
+      if (Math.abs(lossPercentage) > 5) {
+        status = "Needs investigation";
+      } else if (Math.abs(lossPercentage) > 2) {
+        status = "Minor deviation";
+      }
+
+      return {
+        id: `recon-${jc.id}`,
+        jobCardId: jc.id,
+        issuedWeight: estimatedIssuedG,
+        netUsedWeight: netUsedG,
+        wastageWeight: wastageG,
+        lossPercentage,
+        status,
+      };
+    });
+
+  // Use DB reconciliations if available, otherwise display computedRecons
+  const displayRecons = reconciliations.length > 0 ? reconciliations : computedRecons;
+
   // Calculate dynamic stats
-  const toleranceCount = reconciliations.filter(r => r.status === "Within tolerance").length;
-  const minorCount = reconciliations.filter(r => r.status === "Minor deviation").length;
-  const investigationCount = reconciliations.filter(r => r.status === "Needs investigation").length;
+  const toleranceCount = displayRecons.filter((r) => r.status === "Within tolerance").length;
+  const minorCount = displayRecons.filter((r) => r.status === "Minor deviation").length;
+  const investigationCount = displayRecons.filter((r) => r.status === "Needs investigation").length;
 
   return (
     <div className="page on">
       <div className="ph">
         <div className="ph-left">
           <h2>Reconciliation</h2>
-          <p>Actual zari used vs. what was issued. Numbers come from submitted warping logs.</p>
+          <p>Actual zari used vs. what was issued. Numbers come from submitted warping logs and job cards.</p>
         </div>
       </div>
 
@@ -39,19 +82,19 @@ export default function ReconciliationView({ reconciliations }: ReconciliationVi
 
       {/* ITEMS */}
       <div className="list">
-        {reconciliations.length === 0 ? (
+        {displayRecons.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: "40px", color: "var(--t3)" }}>
             No reconciliations computed yet. Complete a warping log to generate a reconciliation record.
           </div>
         ) : (
-          reconciliations.map((recon, idx) => {
+          displayRecons.map((recon, idx) => {
             const progressPct = Math.max(0, Math.min(100, 100 - (recon.lossPercentage || 0)));
             const isDanger = recon.status === "Needs investigation";
             const isWarn = recon.status === "Minor deviation";
-            
-            const progressColor = isDanger 
+
+            const progressColor = isDanger
               ? "linear-gradient(90deg, var(--danger-line), var(--danger))"
-              : isWarn 
+              : isWarn
                 ? "linear-gradient(90deg, var(--warn-line), var(--warn))"
                 : "linear-gradient(90deg, var(--ok-line), var(--ok))";
 
@@ -72,30 +115,30 @@ export default function ReconciliationView({ reconciliations }: ReconciliationVi
                 <div className="recon-row">
                   <div>
                     <div className="lbl">Issued Weight</div>
-                    <div className="val">{recon.issuedWeight} g</div>
+                    <div className="val">{recon.issuedWeight.toLocaleString("en-IN")} g</div>
                   </div>
                   <div>
                     <div className="lbl">Net Used</div>
-                    <div className="val">{recon.netUsedWeight} g</div>
+                    <div className="val">{recon.netUsedWeight.toLocaleString("en-IN")} g</div>
                   </div>
                   <div>
                     <div className="lbl">Wastage</div>
-                    <div className="val">{recon.wastageWeight} g</div>
+                    <div className="val">{recon.wastageWeight.toLocaleString("en-IN")} g</div>
                   </div>
                   <div>
                     <div className="lbl">Loss %</div>
-                    <div className="val" style={{ 
+                    <div className="val" style={{
                       color: isDanger ? "var(--danger)" : isWarn ? "var(--warn)" : "var(--ok)",
-                      fontWeight: 700 
-                    }}>{recon.lossPercentage}%</div>
+                      fontWeight: 700
+                    }}>{recon.lossPercentage > 0 ? `+${recon.lossPercentage}` : recon.lossPercentage}%</div>
                   </div>
                 </div>
                 <div className="progress">
-                  <div 
-                    className="progress-fill" 
-                    style={{ 
-                      width: `${progressPct}%`, 
-                      background: progressColor 
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${progressPct}%`,
+                      background: progressColor
                     }}
                   ></div>
                 </div>

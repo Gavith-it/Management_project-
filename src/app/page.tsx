@@ -9,6 +9,7 @@ import {
   saveMaterialIssue,
   getJobCards,
   saveJobCard,
+  updateJobCardCompletion,
   getWarpingLogs,
   saveWarpingLog,
   getReconciliations,
@@ -241,6 +242,15 @@ export default function Home() {
     setShouldOpenJobCardDrawer(true);
     setActiveView("jobcards");
   };
+
+  const handleCompleteJobCard = async (id: string, wastage: number, leftoverZari: number) => {
+    const updatedJobCards = jobCards.map(jc => 
+      jc.id === id ? { ...jc, wastage, leftoverZari, status: "Completed" } : jc
+    );
+    setJobCards(updatedJobCards);
+    await updateJobCardCompletion(id, wastage, leftoverZari);
+  };
+
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   // Sync auth state and purchases on mount
@@ -270,7 +280,7 @@ export default function Home() {
     syncData();
   }, []);
 
-  const handleLogin = (username: string) => {
+  const handleLogin = () => {
     sessionStorage.setItem("maradi_authenticated", "true");
     setIsAuthenticated(true);
   };
@@ -302,9 +312,14 @@ export default function Home() {
     await saveMaterialIssue(newIssue);
   };
 
-  // Add new job card to state and Supabase
+  // Add/Update job card in state and Supabase
   const handleSaveJobCard = async (newJobCard: JobCard) => {
-    setJobCards([newJobCard, ...jobCards]);
+    const exists = jobCards.some(jc => jc.id === newJobCard.id);
+    if (exists) {
+      setJobCards(prev => prev.map(jc => jc.id === newJobCard.id ? newJobCard : jc));
+    } else {
+      setJobCards([newJobCard, ...jobCards]);
+    }
     await saveJobCard(newJobCard);
   };
 
@@ -415,6 +430,10 @@ export default function Home() {
         {activeView === "dashboard" && (
           <DashboardView
             userName="Sharun"
+            purchases={purchases}
+            materialIssues={materialIssues}
+            jobCards={jobCards}
+            warpingLogs={warpingLogs}
             onOpenNewPurchase={() => setIsNewPurchaseOpen(true)}
           />
         )}
@@ -435,6 +454,7 @@ export default function Home() {
             warpingLogs={warpingLogs}
             onSaveIssue={handleSaveMaterialIssue}
             onNewJobCard={handleNewJobCardFromIssue}
+            onCompleteJobCard={handleCompleteJobCard}
           />
         )}
 
@@ -443,6 +463,7 @@ export default function Home() {
             jobCards={jobCards}
             issues={materialIssues}
             onSaveJobCard={handleSaveJobCard}
+            onCompleteJobCard={handleCompleteJobCard}
             preselectedIssueId={preselectedIssueId}
             clearPreselectedIssueId={() => setPreselectedIssueId(null)}
             openDrawerOnMount={shouldOpenJobCardDrawer}
@@ -462,6 +483,8 @@ export default function Home() {
         {activeView === "reconciliation" && (
           <ReconciliationView
             reconciliations={reconciliations}
+            jobCards={jobCards}
+            warpingLogs={warpingLogs}
           />
         )}
 

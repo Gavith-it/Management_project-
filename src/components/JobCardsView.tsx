@@ -7,6 +7,7 @@ interface JobCardsViewProps {
   jobCards: JobCard[];
   issues: MaterialIssue[];
   onSaveJobCard: (jc: JobCard) => void;
+  onCompleteJobCard: (id: string, wastage: number, leftoverZari: number) => void;
   preselectedIssueId?: string | null;
   clearPreselectedIssueId?: () => void;
   openDrawerOnMount?: boolean;
@@ -17,6 +18,7 @@ export default function JobCardsView({
   jobCards, 
   issues, 
   onSaveJobCard,
+  onCompleteJobCard,
   preselectedIssueId,
   clearPreselectedIssueId,
   openDrawerOnMount,
@@ -33,6 +35,28 @@ export default function JobCardsView({
   const [lengthMeters, setLengthMeters] = useState<number | "">(0);
   const [warpWidth, setWarpWidth] = useState<number | "">(0);
   const [errorMsg, setErrorMsg] = useState("");
+  const [editingJcId, setEditingJcId] = useState<string | null>(null);
+
+  const [activeZariModalJc, setActiveZariModalJc] = useState<any | null>(null);
+  const [modalWastage, setModalWastage] = useState<number | "">(0);
+  const [modalLeftover, setModalLeftover] = useState<number | "">(0);
+
+  const handleOpenZariModal = (jc: any) => {
+    setActiveZariModalJc(jc);
+    setModalWastage(jc.wastage !== undefined ? jc.wastage : 0);
+    setModalLeftover(jc.leftoverZari !== undefined ? jc.leftoverZari : 0);
+  };
+
+  const handleSaveZariModal = () => {
+    if (activeZariModalJc) {
+      onCompleteJobCard(
+        activeZariModalJc.id, 
+        Number(modalWastage) || 0, 
+        Number(modalLeftover) || 0
+      );
+      setActiveZariModalJc(null);
+    }
+  };
 
   useEffect(() => {
     if (openDrawerOnMount) {
@@ -48,6 +72,7 @@ export default function JobCardsView({
       setLengthMeters(0);
       setWarpWidth(0);
       setErrorMsg("");
+      setEditingJcId(null);
       setIsOpen(true);
       if (clearOpenDrawerOnMount) clearOpenDrawerOnMount();
       if (clearPreselectedIssueId) clearPreselectedIssueId();
@@ -68,11 +93,11 @@ export default function JobCardsView({
   const remainingKg = Math.max(0, issuedKg - consumedKg);
   const jobCardsCount = linkedJcs.length;
 
-  // Auto-calculated Estimated Consumption (ends * length / 68)
+  // Auto-calculated Estimated Consumption ((ends * 2) * length / 68)
   const calculatedEstConsumption = (() => {
     const numEnds = Number(ends) || 0;
     const numLen = Number(lengthMeters) || 0;
-    return Math.round((numEnds * numLen) / 68);
+    return Math.round((numEnds * 2 * numLen) / 68);
   })();
 
   const getNextJobCardId = () => {
@@ -97,10 +122,31 @@ export default function JobCardsView({
     setLengthMeters(0);
     setWarpWidth(0);
     setErrorMsg("");
+    setEditingJcId(null);
     setIsOpen(true);
   };
 
-  const handleSave = () => {
+  const handleClose = () => {
+    setIsOpen(false);
+    setEditingJcId(null);
+  };
+
+  const handleEdit = (jc: JobCard) => {
+    setEditingJcId(jc.id);
+    setIssueId(jc.issueId);
+    setCardDate(jc.cardDate);
+    setSareeDesign(jc.sareeDesign);
+    setPreparationType(jc.preparationType as "Body warp" | "Border warp");
+    setLoomNo(jc.loomNo);
+    setOperatorName(jc.operatorName);
+    setEnds(jc.ends);
+    setLengthMeters(jc.lengthMeters);
+    setWarpWidth(jc.warpWidth || 0);
+    setErrorMsg("");
+    setIsOpen(true);
+  };
+
+  const handleSave = (status: "Pending Warp" | "In progress") => {
     if (!issueId) {
       setErrorMsg("Please select an active material issue.");
       return;
@@ -122,10 +168,10 @@ export default function JobCardsView({
       return;
     }
 
-    const nextId = getNextJobCardId();
+    const jcId = editingJcId ? editingJcId : getNextJobCardId();
 
     const newJobCard: JobCard = {
-      id: nextId,
+      id: jcId,
       issueId,
       cardDate,
       sareeDesign: sareeDesign.trim(),
@@ -135,11 +181,12 @@ export default function JobCardsView({
       ends: Number(ends),
       lengthMeters: Number(lengthMeters),
       warpWidth: Number(warpWidth) || undefined,
-      status: "In progress"
+      status: status
     };
 
     onSaveJobCard(newJobCard);
     setIsOpen(false);
+    setEditingJcId(null);
   };
 
   return (
@@ -164,41 +211,122 @@ export default function JobCardsView({
           </div>
         ) : (
           jobCards.map((jc) => (
-            <div className="list-item" key={jc.id} style={{ cursor: "default" }}>
-              <div className="li-left">
-                <div className="li-id" style={{ color: "var(--brand)", fontWeight: 700 }}>{jc.id}</div>
-                <div className="li-sub">
-                  <b>{jc.sareeDesign}</b> &middot; {jc.loomNo} &middot; Weaver: <b>{jc.operatorName}</b>
+            <div className="list-item" key={jc.id} style={{ cursor: "default", display: "flex", flexDirection: "column", gap: "10px", alignItems: "stretch" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="li-left">
+                  <div className="li-id" style={{ color: "var(--brand)", fontWeight: 700 }}>{jc.id}</div>
+                  <div className="li-sub">
+                    <b>{jc.sareeDesign}</b> &middot; {jc.loomNo} &middot; Weaver: <b>{jc.operatorName}</b>
+                  </div>
+                  <div className="li-meta">
+                    <span>Linked Issue: <b>{jc.issueId}</b></span>
+                    <span>Type: <b>{jc.preparationType}</b></span>
+                    <span>
+                      Ends: <b>{jc.ends.toLocaleString()} ({jc.ends * 2})</b> &middot; Length: <b>{jc.lengthMeters}m</b>
+                      {jc.warpWidth !== undefined && jc.warpWidth > 0 && <> &middot; Width: <b>{jc.warpWidth}&quot; ({jc.warpWidth * 2}&quot;)</b></>}
+                    </span>
+                    {jc.wastage !== undefined && jc.wastage > 0 && <span>Wastage: <b>{jc.wastage} g</b></span>}
+                    {jc.leftoverZari !== undefined && jc.leftoverZari > 0 && <span>Leftover in bobbins: <b>{jc.leftoverZari} g</b></span>}
+                    <span>Date: <b>{jc.cardDate}</b></span>
+                  </div>
                 </div>
-                <div className="li-meta">
-                  <span>Linked Issue: <b>{jc.issueId}</b></span>
-                  <span>Type: <b>{jc.preparationType}</b></span>
-                  <span>
-                    Ends: <b>{jc.ends.toLocaleString()}</b> &middot; Length: <b>{jc.lengthMeters}m</b>
-                    {jc.warpWidth !== undefined && jc.warpWidth > 0 && <> &middot; Width: <b>{jc.warpWidth}</b></>}
+                <div className="li-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
+                  <span className={`bdg ${
+                    jc.status === "In progress" ? "bdg-ok" :
+                    jc.status === "Pending Warp" ? "bdg-warn" :
+                    jc.status === "Needs Review" ? "bdg-danger" :
+                    jc.status === "Completed" ? "bdg-gray" : "bdg-gray"
+                  }`}>
+                    {jc.status}
                   </span>
-                  <span>Date: <b>{jc.cardDate}</b></span>
+                  {jc.status === "Pending Warp" && (
+                    <button 
+                      className="btn btn-outline"
+                      style={{ padding: "4px 8px", fontSize: "11px", height: "24px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(jc);
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {(jc.status === "Needs Review" || jc.status === "Completed") && (
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: "4px 10px", fontSize: "11.5px", height: "26px", whiteSpace: "nowrap" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenZariModal(jc);
+                      }}
+                    >
+                      {jc.status === "Completed" ? "Edit Zari Details" : "Record Zari Details"}
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="li-right">
-                <span className={`bdg ${
-                  jc.status === "In progress" ? "bdg-ok" :
-                  jc.status === "Pending Warp" ? "bdg-warn" :
-                  jc.status === "Completed" ? "bdg-gray" : "bdg-danger"
-                }`}>
-                  {jc.status}
-                </span>
-              </div>
+
+              {jc.status === "Needs Review" && (
+                <div style={{ 
+                  marginTop: "4px", 
+                  border: "1.5px solid #F6E2BC", 
+                  backgroundColor: "#FDF8ED", 
+                  padding: "10px 14px", 
+                  borderRadius: "8px" 
+                }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "#8E6015", marginBottom: "6px" }}>
+                    Record Wastage &amp; Leftover Zari
+                  </div>
+                  <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#A87D2E", marginBottom: "2px" }}>Wastage bag (g)</label>
+                      <input 
+                        type="number"
+                        className="df-input"
+                        style={{ height: "32px", padding: "4px 8px", fontSize: "12.5px" }}
+                        placeholder="0"
+                        id={`wastage-main-${jc.id}`}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#A87D2E", marginBottom: "2px" }}>Zari in bobbins (g)</label>
+                      <input 
+                        type="number"
+                        className="df-input"
+                        style={{ height: "32px", padding: "4px 8px", fontSize: "12.5px" }}
+                        placeholder="0"
+                        id={`leftover-main-${jc.id}`}
+                      />
+                    </div>
+                    <button 
+                      className="btn btn-primary"
+                      style={{ height: "32px", padding: "0 12px", fontSize: "12.5px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const wInput = document.getElementById(`wastage-main-${jc.id}`) as HTMLInputElement;
+                        const lInput = document.getElementById(`leftover-main-${jc.id}`) as HTMLInputElement;
+                        const wVal = Number(wInput?.value) || 0;
+                        const lVal = Number(lInput?.value) || 0;
+                        onCompleteJobCard(jc.id, wVal, lVal);
+                      }}
+                    >
+                      Submit
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
 
       {/* NEW JOB CARD FORM DRAWER */}
-      <div className={`overlay ${isOpen ? "open" : ""}`} onClick={() => setIsOpen(false)}>
+      <div className={`overlay ${isOpen ? "open" : ""}`} onClick={handleClose}>
         <div className="drawer" onClick={(e) => e.stopPropagation()}>
           <div className="dh" style={{ gap: "10px", alignItems: "center" }}>
-            <div className="dh-title" style={{ flex: 1 }}>New job card</div>
+            <div className="dh-title" style={{ flex: 1 }}>
+              {editingJcId ? `Edit Job Card (${editingJcId})` : "New job card"}
+            </div>
             <input 
               type="date"
               className="df-input"
@@ -206,7 +334,7 @@ export default function JobCardsView({
               value={cardDate}
               onChange={(e) => setCardDate(e.target.value)}
             />
-            <button className="btn btn-outline" style={{ padding: "4px 8px" }} onClick={() => setIsOpen(false)}>×</button>
+            <button className="btn btn-outline" style={{ padding: "4px 8px" }} onClick={handleClose}>×</button>
           </div>
 
           <div className="db">
@@ -345,7 +473,7 @@ export default function JobCardsView({
                 />
               </div>
               <div className="df">
-                <label className="df-label">Warp width</label>
+                <label className="df-label">Warp width (inches)</label>
                 <input
                   className="df-input"
                   type="number"
@@ -358,7 +486,7 @@ export default function JobCardsView({
 
             <div className="df-computed-big" style={{ backgroundColor: "#FDF8ED", border: "1.5px solid #F6E2BC" }}>
               <div className="lbl" style={{ color: "#A87D2E", fontWeight: 700, fontSize: "11px", textTransform: "uppercase" }}>
-                Estimated Consumption (Ends × Length ÷ 68)
+                Estimated Consumption ((Ends × 2) × Length ÷ 68)
               </div>
               <div className="val" style={{ color: "#8E6015", fontSize: "28px", fontWeight: 800, marginTop: "4px" }}>
                 {calculatedEstConsumption.toLocaleString("en-IN")} g
@@ -370,13 +498,66 @@ export default function JobCardsView({
           </div>
 
           <div className="ds" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", padding: "16px 20px" }}>
-            <button className="btn btn-outline" onClick={() => setIsOpen(false)}>Save draft</button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={activeIssues.length === 0}>
-              Save job card
+            <button className="btn btn-outline" onClick={() => handleSave("Pending Warp")}>
+              Save as draft
+            </button>
+            <button className="btn btn-primary" onClick={() => handleSave("In progress")} disabled={activeIssues.length === 0}>
+              Submit job card
             </button>
           </div>
         </div>
       </div>
+
+      {/* POP-UP MODAL FOR WASTAGE & LEFTOVER ZARI */}
+      {activeZariModalJc && (
+        <div className="overlay open" onClick={() => setActiveZariModalJc(null)}>
+          <div className="drawer" style={{ maxWidth: "450px", height: "auto", borderRadius: "12px", padding: "0" }} onClick={(e) => e.stopPropagation()}>
+            <div className="dh" style={{ gap: "10px", alignItems: "center", padding: "16px 20px" }}>
+              <div className="dh-title" style={{ flex: 1, fontSize: "16px" }}>
+                Zari Details for {activeZariModalJc.id}
+              </div>
+              <button className="btn btn-outline" style={{ padding: "4px 8px" }} onClick={() => setActiveZariModalJc(null)}>×</button>
+            </div>
+
+            <div className="db" style={{ padding: "20px" }}>
+              <p style={{ fontSize: "13px", color: "var(--t2)", marginBottom: "16px" }}>
+                Update the leftover zari in bobbins and wastage bag for <b>{activeZariModalJc.id}</b> ({activeZariModalJc.sareeDesign}).
+              </p>
+              
+              <div className="df" style={{ marginBottom: "14px" }}>
+                <label className="df-label">Wastage bag (g)</label>
+                <input
+                  className="df-input"
+                  type="number"
+                  placeholder="0"
+                  value={modalWastage === 0 ? "" : modalWastage}
+                  onChange={(e) => setModalWastage(e.target.value === "" ? 0 : Number(e.target.value))}
+                />
+                <span className="f-hint">Scattered/lost zari weight</span>
+              </div>
+
+              <div className="df">
+                <label className="df-label">Zari left in bobbins (g)</label>
+                <input
+                  className="df-input"
+                  type="number"
+                  placeholder="0"
+                  value={modalLeftover === 0 ? "" : modalLeftover}
+                  onChange={(e) => setModalLeftover(e.target.value === "" ? 0 : Number(e.target.value))}
+                />
+                <span className="f-hint">Remaining unused zari in bobbins</span>
+              </div>
+            </div>
+
+            <div className="ds" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", padding: "14px 20px" }}>
+              <button className="btn btn-outline" onClick={() => setActiveZariModalJc(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveZariModal}>
+                Save Zari Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

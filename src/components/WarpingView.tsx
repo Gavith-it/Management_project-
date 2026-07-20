@@ -20,14 +20,27 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
   const [bobbinsCount, setBobbinsCount] = useState<number | "">(0);
   const [newspaperWeight, setNewspaperWeight] = useState<number | "">(0);
   const [fruityPaperWeight, setFruityPaperWeight] = useState<number | "">(0);
-  const [emptyBeanWeight, setEmptyBeanWeight] = useState<number | "">(0);
+  const [emptyBeamWeight, setEmptyBeamWeight] = useState<number | "">(0);
 
   // After Winding Weights
   const [grossWeight, setGrossWeight] = useState<number | "">(0);
-  const [wastageWeight, setWastageWeight] = useState<number | "">(0);
-  const [leftoverZari, setLeftoverZari] = useState<number | "">(0);
 
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Sync bobbinsCount when selectedJcId changes (auto-populate from issue bobbins)
+  React.useEffect(() => {
+    if (selectedJcId) {
+      const jc = jobCards.find(c => c.id === selectedJcId);
+      const issue = jc ? issues.find(i => i.id === jc.issueId) : null;
+      if (issue) {
+        setBobbinsCount(issue.bobbinsIssued || 0);
+      } else {
+        setBobbinsCount(0);
+      }
+    } else {
+      setBobbinsCount(0);
+    }
+  }, [selectedJcId, jobCards, issues]);
 
   // Job cards that are in progress and need winding updates
   const activeJobCards = jobCards.filter(jc => jc.status === "In progress");
@@ -47,10 +60,8 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
     setBobbinsCount(0);
     setNewspaperWeight(0);
     setFruityPaperWeight(0);
-    setEmptyBeanWeight(0);
+    setEmptyBeamWeight(0);
     setGrossWeight(0);
-    setWastageWeight(0);
-    setLeftoverZari(0);
     setErrorMsg("");
     setIsOpen(true);
   };
@@ -66,10 +77,8 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
     setBobbinsCount(0);
     setNewspaperWeight(0);
     setFruityPaperWeight(0);
-    setEmptyBeanWeight(0);
+    setEmptyBeamWeight(0);
     setGrossWeight(0);
-    setWastageWeight(0);
-    setLeftoverZari(0);
     setErrorMsg("");
     setIsOpen(true);
   };
@@ -78,8 +87,15 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
   const preparationType = currentJc ? currentJc.preparationType : "Body warp";
 
   // Calculations
-  const emptyBobbinsTotal = (Number(bobbinsCount) || 0) * 16;
-  const totalDeductions = (Number(emptyBeanWeight) || 0) + (Number(newspaperWeight) || 0) + (Number(fruityPaperWeight) || 0);
+  const linkedIssue = currentJc ? issues.find(i => i.id === currentJc.issueId) : null;
+  const totalBobbinWeightFromIssue = linkedIssue ? (Number(linkedIssue.bobbinWeight) || 0) : 0;
+  const singleBobbinWeight = (totalBobbinWeightFromIssue > 0 && Number(bobbinsCount) > 0) 
+    ? (totalBobbinWeightFromIssue / Number(bobbinsCount)) 
+    : 16;
+  const emptyBobbinsTotal = totalBobbinWeightFromIssue > 0 
+    ? totalBobbinWeightFromIssue 
+    : (Number(bobbinsCount) || 0) * 16;
+  const totalDeductions = (Number(emptyBeamWeight) || 0) + (Number(newspaperWeight) || 0) + (Number(fruityPaperWeight) || 0);
   const netZariConsumed = (() => {
     const gross = Number(grossWeight) || 0;
     return Math.max(0, gross - totalDeductions);
@@ -109,9 +125,9 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
       id: nextId,
       jobCardId: selectedJcId,
       startWeight,
-      remainingWeight: Number(leftoverZari) || 0,
+      remainingWeight: Math.max(0, startWeight - netZariConsumed),
       netWarpWeight: netZariConsumed,
-      wastage: Number(wastageWeight) || 0,
+      wastage: 0, // Wastage is now filled out on Job Card completion
       operatorName: operatorName.trim(),
       loggedAt: logDate,
     };
@@ -292,10 +308,11 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
                 <input
                   className="df-input"
                   type="number"
-                  placeholder="0"
-                  value={bobbinsCount === 0 ? "" : bobbinsCount}
-                  onChange={(e) => setBobbinsCount(e.target.value === "" ? 0 : Number(e.target.value))}
+                  readOnly
+                  style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
+                  value={bobbinsCount}
                 />
+                <span className="f-hint">From linked issue</span>
               </div>
               <div className="df">
                 <label className="df-label">Empty bobbins total (g)</label>
@@ -306,7 +323,7 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
                   style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
                   value={emptyBobbinsTotal}
                 />
-                <span className="f-hint">Count × 16 g</span>
+                <span className="f-hint">Count × {singleBobbinWeight.toFixed(1)} g</span>
               </div>
             </div>
             <div className="df2">
@@ -332,56 +349,32 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
               </div>
             </div>
             <div className="df">
-              <label className="df-label">Empty bean weight (g)</label>
+              <label className="df-label">Empty beam weight (g)</label>
               <input
                 className="df-input"
                 type="number"
                 placeholder="0"
-                value={emptyBeanWeight === 0 ? "" : emptyBeanWeight}
-                onChange={(e) => setEmptyBeanWeight(e.target.value === "" ? 0 : Number(e.target.value))}
+                value={emptyBeamWeight === 0 ? "" : emptyBeamWeight}
+                onChange={(e) => setEmptyBeamWeight(e.target.value === "" ? 0 : Number(e.target.value))}
               />
             </div>
 
             <div className="dh-sep">After Winding</div>
-            <div className="df3">
-              <div className="df">
-                <label className="df-label">Gross weight (g)</label>
-                <input
-                  className="df-input"
-                  type="number"
-                  placeholder="0"
-                  value={grossWeight === 0 ? "" : grossWeight}
-                  onChange={(e) => setGrossWeight(e.target.value === "" ? 0 : Number(e.target.value))}
-                />
-              </div>
-              <div className="df">
-                <label className="df-label">Wastage bag (g)</label>
-                <input
-                  className="df-input"
-                  type="number"
-                  placeholder="0"
-                  value={wastageWeight === 0 ? "" : wastageWeight}
-                  onChange={(e) => setWastageWeight(e.target.value === "" ? 0 : Number(e.target.value))}
-                />
-                <span className="f-hint">Scattered zari</span>
-              </div>
-              <div className="df">
-                <label className="df-label">Zari in bobbins (g)</label>
-                <input
-                  className="df-input"
-                  type="number"
-                  placeholder="0"
-                  value={leftoverZari === 0 ? "" : leftoverZari}
-                  onChange={(e) => setLeftoverZari(e.target.value === "" ? 0 : Number(e.target.value))}
-                />
-                <span className="f-hint">Max 5 g allowed</span>
-              </div>
+            <div className="df">
+              <label className="df-label">Gross weight (g)</label>
+              <input
+                className="df-input"
+                type="number"
+                placeholder="0"
+                value={grossWeight === 0 ? "" : grossWeight}
+                onChange={(e) => setGrossWeight(e.target.value === "" ? 0 : Number(e.target.value))}
+              />
             </div>
 
             <div className="dh-sep">Result</div>
             <div className="df-computed-big" style={{ backgroundColor: "#FDF8ED", border: "1.5px solid #F6E2BC" }}>
               <div className="lbl" style={{ color: "#A87D2E", fontWeight: 700, fontSize: "11px", textTransform: "uppercase" }}>
-                Net Zari Consumed
+                Net Zari Consumed (Gross - Empty Beam - Newspaper - Fruity Paper)
               </div>
               <div className="val" style={{ color: "#8E6015", fontSize: "28px", fontWeight: 800, marginTop: "4px" }}>
                 {netZariConsumed.toLocaleString("en-IN")} g
@@ -399,7 +392,7 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
           </div>
 
           <div className="ds" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", padding: "16px 20px" }}>
-            <button className="btn btn-outline" onClick={() => setIsOpen(false)}>Save draft</button>
+            <button className="btn btn-outline" onClick={() => setIsOpen(false)}>Cancel</button>
             <button className="btn btn-primary" onClick={handleSave} disabled={activeJobCards.length === 0}>
               Submit log
             </button>

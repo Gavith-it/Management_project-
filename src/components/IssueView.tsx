@@ -10,6 +10,7 @@ interface IssueViewProps {
   warpingLogs: any[];
   onSaveIssue: (issue: MaterialIssue) => void;
   onNewJobCard: (issueId: string) => void;
+  onCompleteJobCard: (id: string, wastage: number, leftoverZari: number) => void;
 }
 
 export default function IssueView({ 
@@ -18,10 +19,31 @@ export default function IssueView({
   jobCards, 
   warpingLogs, 
   onSaveIssue,
-  onNewJobCard
+  onNewJobCard,
+  onCompleteJobCard
 }: IssueViewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [activeZariModalJc, setActiveZariModalJc] = useState<any | null>(null);
+  const [modalWastage, setModalWastage] = useState<number | "">(0);
+  const [modalLeftover, setModalLeftover] = useState<number | "">(0);
+
+  const handleOpenZariModal = (jc: any) => {
+    setActiveZariModalJc(jc);
+    setModalWastage(jc.wastage !== undefined ? jc.wastage : 0);
+    setModalLeftover(jc.leftoverZari !== undefined ? jc.leftoverZari : 0);
+  };
+
+  const handleSaveZariModal = () => {
+    if (activeZariModalJc) {
+      onCompleteJobCard(
+        activeZariModalJc.id, 
+        Number(modalWastage) || 0, 
+        Number(modalLeftover) || 0
+      );
+      setActiveZariModalJc(null);
+    }
+  };
   
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [batchId, setBatchId] = useState("");
@@ -38,20 +60,31 @@ export default function IssueView({
 
   // Calculate global page statistics
   const todayStr = new Date().toISOString().split("T")[0];
-  const currentMonthStr = todayStr.substring(0, 7); // e.g. "2026-07"
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
-  // 1. Available to issue
-  const availableToIssueKg = recordedPurchases.reduce((acc, p) => acc + (Number(p.marks) || 0) * 0.12, 0);
+  // 1. Available to issue (calculated as total marks * 4 bobbins, minus bobbins already issued)
+  const totalRecordedMarks = recordedPurchases.reduce((acc, p) => acc + (Number(p.marks) || 0), 0);
+  const totalPurchasedBobbins = totalRecordedMarks * 4;
+  const totalIssuedBobbins = issues.reduce((acc, i) => acc + (Number(i.bobbinsIssued) || 0), 0);
+  const availableToIssueBobbins = Math.max(0, totalPurchasedBobbins - totalIssuedBobbins);
 
   // 2. Issued Today
+  const issuedTodayBobbins = issues
+    .filter(i => i.issueDate === todayStr)
+    .reduce((acc, i) => acc + (Number(i.bobbinsIssued) || 0), 0);
   const issuedTodayKg = issues
     .filter(i => i.issueDate === todayStr)
-    .reduce((acc, i) => acc + i.netWeight, 0) / 1000;
+    .reduce((acc, i) => acc + Math.max(0, Number(i.netWeight) || 0), 0) / 1000;
 
-  // 3. This Month
-  const issuedThisMonthKg = issues
-    .filter(i => i.issueDate.startsWith(currentMonthStr))
-    .reduce((acc, i) => acc + i.netWeight, 0) / 1000;
+  // 3. This Month (date-wise calculation matching calendar month)
+  const thisMonthIssues = issues.filter(i => {
+    if (!i.issueDate) return false;
+    const d = new Date(i.issueDate);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+  const issuedThisMonthBobbins = thisMonthIssues.reduce((acc, i) => acc + (Number(i.bobbinsIssued) || 0), 0);
+  const issuedThisMonthKg = thisMonthIssues.reduce((acc, i) => acc + Math.max(0, Number(i.netWeight) || 0), 0) / 1000;
 
   // Bobbins automatic count
   const handleMarksChange = (val: number) => {
@@ -106,6 +139,18 @@ export default function IssueView({
       return;
     }
 
+    // Validate marks against remaining availability in this batch
+    const selectedPurchase = recordedPurchases.find(p => p.batch === batchId);
+    if (selectedPurchase) {
+      const batchIssues = issues.filter(i => i.batchId === batchId);
+      const totalBobbinsIssued = batchIssues.reduce((acc, i) => acc + (Number(i.bobbinsIssued) || 0), 0);
+      const remainingMarks = Math.max(0, (Number(selectedPurchase.marks) || 0) - (totalBobbinsIssued / 4));
+      if (Number(marks) > remainingMarks) {
+        setErrorMsg(`Cannot issue ${marks} marks. Only ${remainingMarks} marks are remaining in batch ${batchId}.`);
+        return;
+      }
+    }
+
     const nextNum = issues.length > 0 
       ? Math.max(...issues.map(i => parseInt(i.id.replace("ISS-", ""), 10) || 0)) + 1 
       : 1;
@@ -144,10 +189,16 @@ export default function IssueView({
     const linkedJcs = jobCards.filter(jc => jc.issueId === issue.id);
     const issueWarpLogs = warpingLogs.filter(log => linkedJcs.some(jc => jc.id === log.jobCardId));
     
-    const issuedKg = issue.netWeight / 1000;
+    const issuedBobbins = issue.bobbinsIssued;
+    const avgBobbinWeightG = issuedBobbins > 0 ? (Math.max(0, issue.netWeight) / issuedBobbins) : 0;
     const consumedG = issueWarpLogs.reduce((acc, log) => acc + log.netWarpWeight, 0);
-    const consumedKg = consumedG / 1000;
-    const remainingKg = Math.max(0, issuedKg - consumedKg);
+    const consumedBobbins = avgBobbinWeightG > 0 ? Math.round(consumedG / avgBobbinWeightG) : 0;
+    const totalWastageG = linkedJcs.reduce((acc, jc) => acc + (Number(jc.wastage) || 0), 0);
+    const totalLeftoverG = linkedJcs.reduce((acc, jc) => acc + (Number(jc.leftoverZari) || 0), 0);
+    const remainingG = totalLeftoverG > 0 
+      ? totalLeftoverG 
+      : Math.max(0, issue.netWeight - consumedG - totalWastageG);
+    const remainingBobbins = avgBobbinWeightG > 0 ? Math.round(remainingG / avgBobbinWeightG) : Math.max(0, issuedBobbins - consumedBobbins);
     const jobCardsCount = linkedJcs.length;
 
     return (
@@ -174,19 +225,23 @@ export default function IssueView({
         <div className="stat-row s4" style={{ marginBottom: "24px" }}>
           <div className="stat-box">
             <div className="lbl">Issued</div>
-            <div className="val">{issuedKg.toFixed(3)} kg</div>
+            <div className="val" style={{ fontSize: "24px", fontWeight: 800 }}>{(issue.netWeight / 1000).toFixed(3)} kg</div>
+            <div className="sub" style={{ fontSize: "12px", color: "var(--t2)", marginTop: "4px" }}>{issuedBobbins} bobbins ({issue.netWeight.toLocaleString("en-IN")} g)</div>
           </div>
           <div className="stat-box">
             <div className="lbl">Consumed</div>
-            <div className="val">{consumedKg.toFixed(3)} kg</div>
+            <div className="val" style={{ fontSize: "24px", fontWeight: 800 }}>{(consumedG / 1000).toFixed(3)} kg</div>
+            <div className="sub" style={{ fontSize: "12px", color: "var(--t2)", marginTop: "4px" }}>{consumedBobbins} bobbins ({consumedG.toLocaleString("en-IN")} g)</div>
           </div>
           <div className="stat-box">
             <div className="lbl">Remaining</div>
-            <div className="val">{remainingKg.toFixed(3)} kg</div>
+            <div className="val" style={{ fontSize: "24px", fontWeight: 800 }}>{(remainingG / 1000).toFixed(3)} kg</div>
+            <div className="sub" style={{ fontSize: "12px", color: "var(--t2)", marginTop: "4px" }}>{remainingBobbins} bobbins ({remainingG.toLocaleString("en-IN")} g)</div>
           </div>
           <div className="stat-box">
             <div className="lbl">Job Cards</div>
             <div className="val" style={{ fontSize: "28px" }}>{jobCardsCount}</div>
+            <div className="sub" style={{ fontSize: "12px", color: "var(--t2)", marginTop: "4px" }}>Active &amp; Completed</div>
           </div>
         </div>
 
@@ -204,27 +259,46 @@ export default function IssueView({
               const log = warpingLogs.find(l => l.jobCardId === jc.id);
               const netUsedG = log ? log.netWarpWeight : 0;
               return (
-                <div className="list-item" key={jc.id} style={{ cursor: "default", padding: "14px 18px" }}>
-                  <div className="li-left">
-                    <div className="li-id" style={{ color: "var(--brand)", fontWeight: 700 }}>{jc.id}</div>
-                    <div className="li-sub" style={{ marginTop: "2px" }}>
-                      <b>{jc.preparationType}</b> &middot; Loom {jc.loomNo} &middot; {jc.sareeDesign}
+                <div className="list-item" key={jc.id} style={{ cursor: "default", padding: "14px 18px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "stretch" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="li-left">
+                      <div className="li-id" style={{ color: "var(--brand)", fontWeight: 700 }}>{jc.id}</div>
+                      <div className="li-sub" style={{ marginTop: "2px" }}>
+                        <b>{jc.preparationType}</b> &middot; Loom {jc.loomNo} &middot; {jc.sareeDesign}
+                      </div>
+                      <div className="li-meta" style={{ marginTop: "4px" }}>
+                        <span>Net used: <b>{netUsedG.toLocaleString("en-IN")} g</b></span>
+                        {jc.wastage !== undefined && jc.wastage > 0 && <span>Wastage: <b>{jc.wastage} g</b></span>}
+                        {jc.leftoverZari !== undefined && jc.leftoverZari > 0 && <span>Leftover in bobbins: <b>{jc.leftoverZari} g</b></span>}
+                        <span>Weaver: <b>{jc.operatorName}</b></span>
+                        <span>Ends: <b>{jc.ends.toLocaleString()} ({jc.ends * 2})</b> &middot; Length: <b>{jc.lengthMeters}m</b>{jc.warpWidth !== undefined && jc.warpWidth > 0 && <> &middot; Width: <b>{jc.warpWidth}&quot; ({jc.warpWidth * 2}&quot;)</b></>}</span>
+                      </div>
                     </div>
-                    <div className="li-meta" style={{ marginTop: "4px" }}>
-                      <span>Net used: <b>{netUsedG.toLocaleString("en-IN")} g</b></span>
-                      <span>Weaver: <b>{jc.operatorName}</b></span>
-                      <span>Ends: <b>{jc.ends.toLocaleString()}</b> &middot; Length: <b>{jc.lengthMeters}m</b></span>
+                    <div className="li-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
+                      <span className={`bdg ${
+                        jc.status === "In progress" ? "bdg-ok" :
+                        jc.status === "Pending Warp" ? "bdg-warn" :
+                        jc.status === "Needs Review" ? "bdg-danger" :
+                        jc.status === "Completed" ? "bdg-gray" : "bdg-gray"
+                      }`}>
+                        {jc.status}
+                      </span>
+                      {(log || jc.status === "Needs Review" || jc.status === "Completed") && (
+                        <button
+                          className="btn btn-outline"
+                          style={{ padding: "4px 10px", fontSize: "11.5px", height: "26px", whiteSpace: "nowrap" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenZariModal(jc);
+                          }}
+                        >
+                          {jc.status === "Completed" ? "Edit Zari Details" : "Record Zari Details"}
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="li-right">
-                    <span className={`bdg ${
-                      jc.status === "In progress" ? "bdg-ok" :
-                      jc.status === "Pending Warp" ? "bdg-warn" :
-                      jc.status === "Completed" ? "bdg-gray" : "bdg-danger"
-                    }`}>
-                      {jc.status}
-                    </span>
-                  </div>
+
+
                 </div>
               );
             })
@@ -255,17 +329,27 @@ export default function IssueView({
       <div className="stat-row s3" style={{ marginBottom: "16px" }}>
         <div className="stat-box">
           <div className="lbl">Available to issue</div>
-          <div className="val">{availableToIssueKg.toFixed(1)} kg</div>
+          <div className="val">{availableToIssueBobbins} bobbins</div>
           <div className="sub">Recorded in inventory</div>
         </div>
         <div className="stat-box">
           <div className="lbl">Issued Today</div>
-          <div className="val">{issuedTodayKg.toFixed(1)} kg</div>
+          <div className="val" style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+            <span>{issuedTodayBobbins} bobbins</span>
+            <span style={{ fontSize: "12px", color: "var(--t2)", fontWeight: "normal" }}>
+              ({issuedTodayKg.toFixed(3)} kg)
+            </span>
+          </div>
           <div className="sub">Today&apos;s warp runs</div>
         </div>
         <div className="stat-box">
           <div className="lbl">This Month</div>
-          <div className="val">{issuedThisMonthKg.toFixed(1)} kg</div>
+          <div className="val" style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+            <span>{issuedThisMonthBobbins} bobbins</span>
+            <span style={{ fontSize: "12px", color: "var(--t2)", fontWeight: "normal" }}>
+              ({issuedThisMonthKg.toFixed(3)} kg)
+            </span>
+          </div>
           <div className="sub">Monthly production runs</div>
         </div>
       </div>
@@ -283,10 +367,13 @@ export default function IssueView({
             const linkedJcs = jobCards.filter(jc => jc.issueId === issue.id);
             const issueWarpLogs = warpingLogs.filter(log => linkedJcs.some(jc => jc.id === log.jobCardId));
             
-            const issuedKg = issue.netWeight / 1000;
+            const issuedBobbins = issue.bobbinsIssued;
+            const avgBobbinWeightG = issuedBobbins > 0 ? (Math.max(0, issue.netWeight) / issuedBobbins) : 0;
             const consumedG = issueWarpLogs.reduce((acc, log) => acc + log.netWarpWeight, 0);
-            const consumedKg = consumedG / 1000;
-            const remainingKg = Math.max(0, issuedKg - consumedKg);
+            const consumedBobbins = avgBobbinWeightG > 0 ? Math.round(consumedG / avgBobbinWeightG) : 0;
+            const totalWastageG = linkedJcs.reduce((acc, jc) => acc + (Number(jc.wastage) || 0), 0);
+            const wastageBobbins = avgBobbinWeightG > 0 ? Math.round(totalWastageG / avgBobbinWeightG) : 0;
+            const remainingBobbins = Math.max(0, issuedBobbins - consumedBobbins - wastageBobbins);
             const jobCardsCount = linkedJcs.length;
 
             return (
@@ -306,9 +393,9 @@ export default function IssueView({
                     {vendorName} &middot; {issue.issueDate} &middot; <b>{jobCardsCount} job card{jobCardsCount !== 1 && "s"}</b>
                   </div>
                   <div style={{ marginTop: "6px", fontSize: "13px", color: "var(--t2)", fontFamily: "var(--font-mono)" }}>
-                    Issued <b>{issuedKg.toFixed(3)} kg</b> &nbsp;&middot;&nbsp; 
-                    Consumed <b>{consumedKg.toFixed(3)} kg</b> &nbsp;&middot;&nbsp; 
-                    Remaining <b>{remainingKg.toFixed(3)} kg</b>
+                    Issued <b>{issuedBobbins} bobbins</b> &nbsp;&middot;&nbsp; 
+                    Consumed <b>{consumedBobbins} bobbins</b> &nbsp;&middot;&nbsp; 
+                    Remaining <b>{remainingBobbins} bobbins</b>
                   </div>
                 </div>
                 <div className="li-right">
@@ -356,11 +443,16 @@ export default function IssueView({
                   value={batchId}
                   onChange={(e) => setBatchId(e.target.value)}
                 >
-                  {recordedPurchases.map((p) => (
-                    <option key={p.id} value={p.batch}>
-                      {p.batch} &middot; {p.vendor} &middot; {p.marks} marks available
-                    </option>
-                  ))}
+                  {recordedPurchases.map((p) => {
+                    const batchIssues = issues.filter(i => i.batchId === p.batch);
+                    const totalBobbinsIssued = batchIssues.reduce((acc, i) => acc + (Number(i.bobbinsIssued) || 0), 0);
+                    const remainingMarks = Math.max(0, (Number(p.marks) || 0) - (totalBobbinsIssued / 4));
+                    return (
+                      <option key={p.id} value={p.batch}>
+                        {p.batch} &middot; {p.vendor} &middot; {remainingMarks} marks available
+                      </option>
+                    );
+                  })}
                 </select>
               )}
             </div>
@@ -468,6 +560,57 @@ export default function IssueView({
           </div>
         </div>
       </div>
+
+      {/* POP-UP MODAL FOR WASTAGE & LEFTOVER ZARI */}
+      {activeZariModalJc && (
+        <div className="overlay open" onClick={() => setActiveZariModalJc(null)}>
+          <div className="drawer" style={{ maxWidth: "450px", height: "auto", borderRadius: "12px", padding: "0" }} onClick={(e) => e.stopPropagation()}>
+            <div className="dh" style={{ gap: "10px", alignItems: "center", padding: "16px 20px" }}>
+              <div className="dh-title" style={{ flex: 1, fontSize: "16px" }}>
+                Zari Details for {activeZariModalJc.id}
+              </div>
+              <button className="btn btn-outline" style={{ padding: "4px 8px" }} onClick={() => setActiveZariModalJc(null)}>×</button>
+            </div>
+
+            <div className="db" style={{ padding: "20px" }}>
+              <p style={{ fontSize: "13px", color: "var(--t2)", marginBottom: "16px" }}>
+                Update the leftover zari in bobbins and wastage bag for <b>{activeZariModalJc.id}</b> ({activeZariModalJc.sareeDesign}).
+              </p>
+              
+              <div className="df" style={{ marginBottom: "14px" }}>
+                <label className="df-label">Wastage bag (g)</label>
+                <input
+                  className="df-input"
+                  type="number"
+                  placeholder="0"
+                  value={modalWastage === 0 ? "" : modalWastage}
+                  onChange={(e) => setModalWastage(e.target.value === "" ? 0 : Number(e.target.value))}
+                />
+                <span className="f-hint">Scattered/lost zari weight</span>
+              </div>
+
+              <div className="df">
+                <label className="df-label">Zari left in bobbins (g)</label>
+                <input
+                  className="df-input"
+                  type="number"
+                  placeholder="0"
+                  value={modalLeftover === 0 ? "" : modalLeftover}
+                  onChange={(e) => setModalLeftover(e.target.value === "" ? 0 : Number(e.target.value))}
+                />
+                <span className="f-hint">Remaining unused zari in bobbins</span>
+              </div>
+            </div>
+
+            <div className="ds" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", padding: "14px 20px" }}>
+              <button className="btn btn-outline" onClick={() => setActiveZariModalJc(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveZariModal}>
+                Save Zari Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

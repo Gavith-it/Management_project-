@@ -206,6 +206,8 @@ export interface JobCard {
   lengthMeters: number;
   warpWidth?: number; // Added field
   status: string; // 'In progress' | 'Pending Warp' | 'Needs Review' | 'Completed'
+  wastage?: number;
+  leftoverZari?: number;
 }
 
 export interface WarpingLog {
@@ -258,6 +260,8 @@ function mapRowToJobCard(row: any): JobCard {
     lengthMeters: Number(row.length_meters),
     warpWidth: row.warp_width ? Number(row.warp_width) : undefined,
     status: row.status,
+    wastage: row.wastage_g ? Number(row.wastage_g) : undefined,
+    leftoverZari: row.leftover_zari_g ? Number(row.leftover_zari_g) : undefined,
   };
 }
 
@@ -364,8 +368,10 @@ export async function saveJobCard(jc: JobCard): Promise<boolean> {
       length_meters: jc.lengthMeters,
       warp_width: jc.warpWidth || null,
       status: jc.status,
+      wastage_g: jc.wastage || 0,
+      leftover_zari_g: jc.leftoverZari || 0,
     };
-    const { error } = await supabase.from("job_cards").insert(dbJc);
+    const { error } = await supabase.from("job_cards").upsert(dbJc);
     if (error) {
       console.error("Failed to save job_card:", error.message);
       return false;
@@ -398,12 +404,14 @@ export async function getWarpingLogs(fallbackData: WarpingLog[]): Promise<Warpin
 export async function saveWarpingLog(log: WarpingLog): Promise<boolean> {
   if (!getIsSupabaseConfigured()) return false;
   try {
+    const startW = log.startWeight > 0 ? log.startWeight : (log.netWarpWeight || 0);
+    const remW = Math.max(0, startW - (log.netWarpWeight || 0));
     const dbLog = {
       id: log.id,
       job_card_id: log.jobCardId,
-      start_weight_g: log.startWeight,
-      remaining_weight_g: log.remainingWeight,
-      wastage_g: log.wastage,
+      start_weight_g: startW,
+      remaining_weight_g: remW,
+      wastage_g: log.wastage || 0,
       operator_name: log.operatorName,
     };
     const { error } = await supabase.from("warping_logs").insert(dbLog);
@@ -412,12 +420,34 @@ export async function saveWarpingLog(log: WarpingLog): Promise<boolean> {
       return false;
     }
     
-    // Also update the job card status to Completed
-    await supabase.from("job_cards").update({ status: "Completed" }).eq("id", log.jobCardId);
+    // Also update the job card status to Needs Review for final wastage inputs
+    await supabase.from("job_cards").update({ status: "Needs Review" }).eq("id", log.jobCardId);
     
     return true;
   } catch (err) {
     console.error("Supabase warping_log insert failed:", err);
+    return false;
+  }
+}
+
+export async function updateJobCardCompletion(id: string, wastage: number, leftoverZari: number): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return false;
+  try {
+    const { error } = await supabase
+      .from("job_cards")
+      .update({
+        wastage_g: wastage,
+        leftover_zari_g: leftoverZari,
+        status: "Completed"
+      })
+      .eq("id", id);
+    if (error) {
+      console.error("Failed to complete job_card:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase job_card update failed:", err);
     return false;
   }
 }
