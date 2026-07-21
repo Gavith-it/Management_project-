@@ -361,10 +361,15 @@ export default function Home() {
     setPurchases(
       purchases.map((p: any) => {
         if (p.id === id) {
+          const zariSubtotal = (p.marks || 0) * (p.rate || 0);
+          const taxableTotal = zariSubtotal + freightAmt;
+          const gstAmt = taxableTotal * ((p.gst || 0) / 100);
+          const updatedTotal = Math.round(taxableTotal + gstAmt);
           return {
             ...p,
             status: newStatus,
             freight: freightAmt,
+            total: updatedTotal,
           };
         }
         return p;

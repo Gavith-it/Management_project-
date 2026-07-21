@@ -111,9 +111,11 @@ export default function PurchaseDetail({ purchase, onBack, onUpdateStatus }: Pur
     }
   };
 
-  const subtotal = purchase.marks * purchase.rate;
-  const gstAmt = subtotal * (purchase.gst / 100);
-  const grandTotal = subtotal + gstAmt + (purchase.freight || 0);
+  const zariSubtotal = purchase.marks * purchase.rate;
+  const freightVal = purchase.freight || 0;
+  const taxableTotal = zariSubtotal + freightVal;
+  const gstAmt = taxableTotal * (purchase.gst / 100);
+  const grandTotal = Math.round(taxableTotal + gstAmt);
 
   return (
     <div className="page on">
@@ -233,7 +235,7 @@ export default function PurchaseDetail({ purchase, onBack, onUpdateStatus }: Pur
                 <div className="rb-lbl">Total Amount (incl. gst &amp; freight)</div>
                 <div className="rb-val">₹{grandTotal.toLocaleString("en-IN")}</div>
                 <div className="rb-sub">
-                  Subtotal: ₹{subtotal.toLocaleString("en-IN")} &middot; GST ({purchase.gst}%): ₹{gstAmt.toLocaleString("en-IN")}
+                  Zari: ₹{zariSubtotal.toLocaleString("en-IN")} &middot; Freight: ₹{freightVal.toLocaleString("en-IN")} &middot; GST ({purchase.gst}% on ₹{taxableTotal.toLocaleString("en-IN")}): ₹{Math.round(gstAmt).toLocaleString("en-IN")}
                 </div>
               </div>
             </div>

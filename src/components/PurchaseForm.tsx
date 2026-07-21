@@ -46,7 +46,7 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
   const [remarks, setRemarks] = useState("");
 
   const [itemName, setItemName] = useState("");
-  const [itemId, setItemId] = useState(() => `RM-${String(nextId).padStart(6, "0")}`);
+  const [itemId, setItemId] = useState("RM-000009");
 
   const [errorMsg, setErrorMsg] = useState("");
   const [total, setTotal] = useState(0);
@@ -79,18 +79,19 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     setFreight("");
     setRemarks("");
     setItemName("");
-    setItemId(`RM-${String(nextId).padStart(6, "0")}`);
+    setItemId("RM-000009");
     setTotal(0);
   };
 
-  // Calculate total automatically (including gst and freight)
+  // Calculate total automatically (freight charges added to subtotal before applying GST)
   useEffect(() => {
     const marksNum = Number(marks) || 0;
     const rateNum = Number(rate) || 0;
-    const subtotal = marksNum * rateNum;
-    const gstAmt = subtotal * (gst / 100);
     const freightNum = Number(freight) || 0;
-    setTotal(Math.round(subtotal + gstAmt + freightNum));
+    const zariSubtotal = marksNum * rateNum;
+    const taxableSubtotal = zariSubtotal + freightNum;
+    const gstAmt = taxableSubtotal * (gst / 100);
+    setTotal(Math.round(taxableSubtotal + gstAmt));
   }, [marks, rate, gst, freight]);
 
   if (!isOpen) return null;
@@ -503,9 +504,9 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
         </div>
 
           <div className="df-computed-big">
-            <div className="lbl">Total Amount</div>
+            <div className="lbl">Total Amount (incl. GST &amp; Freight)</div>
             <div className="val">₹{total.toLocaleString("en-IN")}</div>
-            <div className="hint">Freight is added when the purchase is recorded</div>
+            <div className="hint">GST ({gst}%) is calculated on (Zari Amount + Freight)</div>
           </div>
 
           <div className="df">

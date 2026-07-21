@@ -116,9 +116,10 @@ export default function PurchasesView({
       <div className="list">
         {filteredPurchases.length > 0 ? (
           filteredPurchases.map((p) => {
-            const subtotal = p.marks * p.rate;
-            const gstAmt = subtotal * (p.gst / 100);
-            const totalWithGst = subtotal + gstAmt;
+            const zariSubtotal = p.marks * p.rate;
+            const taxableTotal = zariSubtotal + (p.freight || 0);
+            const gstAmt = taxableTotal * (p.gst / 100);
+            const totalWithGst = Math.round(taxableTotal + gstAmt);
 
             return (
               <div key={p.id} className="list-item" onClick={() => setSelectedPurchaseId(p.id)}>
