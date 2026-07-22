@@ -256,8 +256,10 @@ export default function Home() {
   // Sync auth state and purchases on mount
   useEffect(() => {
     const authStatus = sessionStorage.getItem("maradi_authenticated");
+    const savedRole = sessionStorage.getItem("maradi_role") || "admin";
     if (authStatus === "true") {
       setIsAuthenticated(true);
+      setUserRole(savedRole);
     }
     setHasCheckedAuth(true);
 
@@ -280,14 +282,41 @@ export default function Home() {
     syncData();
   }, []);
 
-  const handleLogin = () => {
+  const handleLogin = (username: string) => {
+    let resolvedRole = "admin";
+    const u = username.toLowerCase();
+    if (u === "cred2") {
+      resolvedRole = "purchases_manager";
+    } else if (u === "cred3") {
+      resolvedRole = "inventory_manager";
+    } else if (u === "cred4") {
+      resolvedRole = "warping_operator";
+    }
+
     sessionStorage.setItem("maradi_authenticated", "true");
+    sessionStorage.setItem("maradi_role", resolvedRole);
+    sessionStorage.setItem("maradi_username", username);
     setIsAuthenticated(true);
+    setUserRole(resolvedRole);
+
+    // Direct user to a sensible active view based on their role
+    if (resolvedRole === "purchases_manager") {
+      setActiveView("purchases");
+    } else if (resolvedRole === "inventory_manager") {
+      setActiveView("issue");
+    } else if (resolvedRole === "warping_operator") {
+      setActiveView("warping");
+    } else {
+      setActiveView("dashboard");
+    }
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem("maradi_authenticated");
+    sessionStorage.removeItem("maradi_role");
+    sessionStorage.removeItem("maradi_username");
     setIsAuthenticated(false);
+    setUserRole("admin");
   };
 
   // Dynamically calculate next PUR ID (starts from 1, i.e., 0001)
@@ -443,7 +472,7 @@ export default function Home() {
           />
         )}
 
-        {activeView === "purchases" && (
+        {activeView === "purchases" && (userRole === "admin" || userRole === "purchases_manager") && (
           <PurchasesView
             purchases={purchases}
             onOpenNewPurchase={() => setIsNewPurchaseOpen(true)}
@@ -451,7 +480,7 @@ export default function Home() {
           />
         )}
 
-        {activeView === "issue" && (
+        {activeView === "issue" && (userRole === "admin" || userRole === "inventory_manager") && (
           <IssueView
             issues={materialIssues}
             purchases={purchases}
@@ -460,10 +489,11 @@ export default function Home() {
             onSaveIssue={handleSaveMaterialIssue}
             onNewJobCard={handleNewJobCardFromIssue}
             onCompleteJobCard={handleCompleteJobCard}
+            userRole={userRole}
           />
         )}
 
-        {activeView === "jobcards" && (
+        {activeView === "jobcards" && userRole === "admin" && (
           <JobCardsView
             jobCards={jobCards}
             issues={materialIssues}
@@ -476,7 +506,7 @@ export default function Home() {
           />
         )}
 
-        {activeView === "warping" && (
+        {activeView === "warping" && (userRole === "admin" || userRole === "warping_operator") && (
           <WarpingView
             jobCards={jobCards}
             issues={materialIssues}
@@ -485,7 +515,7 @@ export default function Home() {
           />
         )}
 
-        {activeView === "reconciliation" && (
+        {activeView === "reconciliation" && (userRole === "admin" || userRole === "purchases_manager") && (
           <ReconciliationView
             reconciliations={reconciliations}
             jobCards={jobCards}
@@ -493,7 +523,7 @@ export default function Home() {
           />
         )}
 
-        {activeView === "settings" && (
+        {activeView === "settings" && userRole === "admin" && (
           <SettingsView />
         )}
       </div>
@@ -502,6 +532,7 @@ export default function Home() {
       <BottomNav
         activeView={activeView}
         onViewChange={(view) => setActiveView(view)}
+        userRole={userRole}
       />
 
       {/* NEW PURCHASE DRAWER */}

@@ -27,14 +27,26 @@ export default function LoginView({ onLogin }: LoginViewProps) {
 
     setLoading(true);
 
-    // Simulate authenticating (default credentials: admin / admin123)
+    // Simulate authenticating for 4 user credential roles
     setTimeout(() => {
-      if (trimmedUser.toLowerCase() === "admin" && trimmedPass === "admin123") {
+      const u = trimmedUser.toLowerCase();
+      const p = trimmedPass;
+
+      if (u === "admin" && p === "admin123") {
         setLoading(false);
-        onLogin(trimmedUser);
+        onLogin("admin");
+      } else if (u === "cred2" && p === "pass2") {
+        setLoading(false);
+        onLogin("cred2");
+      } else if (u === "cred3" && p === "pass3") {
+        setLoading(false);
+        onLogin("cred3");
+      } else if (u === "cred4" && p === "pass4") {
+        setLoading(false);
+        onLogin("cred4");
       } else {
         setLoading(false);
-        setErrorMsg("Invalid username or password. Try admin / admin123");
+        setErrorMsg("Invalid username or password. Available: admin/admin123, cred2/pass2, cred3/pass3, cred4/pass4");
       }
     }, 800);
   };
@@ -170,7 +182,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                 id="usernameInput"
                 type="text"
                 className="df-input"
-                placeholder="Enter username (admin)"
+                placeholder="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 style={{ paddingLeft: "38px" }}
@@ -220,7 +232,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
                 id="passwordInput"
                 type={showPassword ? "text" : "password"}
                 className="df-input"
-                placeholder="Enter password (admin123)"
+                placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={{ paddingLeft: "38px", paddingRight: "38px" }}

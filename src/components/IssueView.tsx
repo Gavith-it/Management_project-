@@ -11,6 +11,7 @@ interface IssueViewProps {
   onSaveIssue: (issue: MaterialIssue) => void;
   onNewJobCard: (issueId: string) => void;
   onCompleteJobCard: (id: string, wastage: number, leftoverZari: number) => void;
+  userRole: string;
 }
 
 export default function IssueView({ 
@@ -20,7 +21,8 @@ export default function IssueView({
   warpingLogs, 
   onSaveIssue,
   onNewJobCard,
-  onCompleteJobCard
+  onCompleteJobCard,
+  userRole
 }: IssueViewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
@@ -215,9 +217,11 @@ export default function IssueView({
             <button className="btn btn-outline" style={{ display: "flex", alignItems: "center", gap: "4px" }} onClick={() => setSelectedIssueId(null)}>
               &larr; Back
             </button>
-            <button className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: "4px" }} onClick={() => onNewJobCard(issue.id)}>
-              + New job card
-            </button>
+            {userRole === "admin" && (
+              <button className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: "4px" }} onClick={() => onNewJobCard(issue.id)}>
+                + New job card
+              </button>
+            )}
           </div>
         </div>
 

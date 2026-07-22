@@ -19,10 +19,9 @@ export default function Topbar({ title, userRole, onRoleChange }: TopbarProps) {
           onChange={(e) => onRoleChange(e.target.value)}
         >
           <option value="admin">Admin</option>
-          <option value="inventory">Inventory</option>
-          <option value="production">Production</option>
-          <option value="jobcard">Job card</option>
-          <option value="warping">Warping</option>
+          <option value="purchases_manager">Purchases Manager</option>
+          <option value="inventory_manager">Inventory Manager</option>
+          <option value="warping_operator">Warping Operator</option>
         </select>
       </div>
     </div>
