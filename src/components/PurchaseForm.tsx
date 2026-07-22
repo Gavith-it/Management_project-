@@ -407,11 +407,10 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
           <div className="df">
             <label className="df-label">Item ID</label>
             <input
-            className="df-input mono"
-            value={itemId}
-            readOnly
-            style={{ backgroundColor: "var(--bg)", cursor: "not-allowed" }}
-          />
+              className="df-input mono"
+              value={itemId}
+              onChange={(e) => setItemId(e.target.value)}
+            />
           </div>
         </div>
 
