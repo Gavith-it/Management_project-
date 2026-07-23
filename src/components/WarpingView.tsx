@@ -8,9 +8,18 @@ interface WarpingViewProps {
   issues: MaterialIssue[];
   warpingLogs: WarpingLog[];
   onSaveWarpLog: (log: WarpingLog) => void;
+  onDeleteWarpingLog?: (id: string) => void;
+  userRole?: string;
 }
 
-export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpLog }: WarpingViewProps) {
+export default function WarpingView({ 
+  jobCards, 
+  issues, 
+  warpingLogs, 
+  onSaveWarpLog,
+  onDeleteWarpingLog,
+  userRole = "admin"
+}: WarpingViewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [logDate, setLogDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [selectedJcId, setSelectedJcId] = useState("");
@@ -225,8 +234,22 @@ export default function WarpingView({ jobCards, issues, warpingLogs, onSaveWarpL
                   {log.loggedAt && <span>Closed: <b>{log.loggedAt}</b></span>}
                 </div>
               </div>
-              <div className="li-right">
+              <div className="li-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
                 <span className="bdg bdg-gray">Logged</span>
+                {userRole === "admin" && onDeleteWarpingLog && (
+                  <button
+                    className="btn btn-outline"
+                    style={{ padding: "3px 8px", fontSize: "11px", color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Are you sure you want to delete warping log ${log.id}?`)) {
+                        onDeleteWarpingLog(log.id);
+                      }
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))

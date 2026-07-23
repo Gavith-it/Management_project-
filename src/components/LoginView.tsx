@@ -1,17 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 interface LoginViewProps {
-  onLogin: (username: string) => void;
+  onLogin: (username: string, rememberMe: boolean) => void;
 }
 
 export default function LoginView({ onLogin }: LoginViewProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Forgot password modal states
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotInput, setForgotInput] = useState("");
+  const [forgotMsg, setForgotMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  // Pre-fill remembered username on mount if available
+  useEffect(() => {
+    const savedUser = localStorage.getItem("maradi_remembered_username");
+    if (savedUser) {
+      setUsername(savedUser);
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +42,13 @@ export default function LoginView({ onLogin }: LoginViewProps) {
 
     setLoading(true);
 
+    // Save or clear remembered username
+    if (rememberMe) {
+      localStorage.setItem("maradi_remembered_username", trimmedUser);
+    } else {
+      localStorage.removeItem("maradi_remembered_username");
+    }
+
     // Simulate authenticating for 4 user credential roles
     setTimeout(() => {
       const u = trimmedUser.toLowerCase();
@@ -34,20 +56,39 @@ export default function LoginView({ onLogin }: LoginViewProps) {
 
       if (u === "admin" && p === "admin123") {
         setLoading(false);
-        onLogin("admin");
+        onLogin("admin", rememberMe);
       } else if (u === "cred2" && p === "pass2") {
         setLoading(false);
-        onLogin("cred2");
+        onLogin("cred2", rememberMe);
       } else if (u === "cred3" && p === "pass3") {
         setLoading(false);
-        onLogin("cred3");
+        onLogin("cred3", rememberMe);
       } else if (u === "cred4" && p === "pass4") {
         setLoading(false);
-        onLogin("cred4");
+        onLogin("cred4", rememberMe);
       } else {
         setLoading(false);
         setErrorMsg("Invalid username or password. Available: admin/admin123, cred2/pass2, cred3/pass3, cred4/pass4");
       }
+    }, 800);
+  };
+
+  const handleForgotSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotInput.trim()) {
+      setForgotMsg({ type: "error", text: "Please enter your username or registered email address." });
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotMsg(null);
+
+    setTimeout(() => {
+      setForgotLoading(false);
+      setForgotMsg({
+        type: "success",
+        text: `Password reset instructions sent for "${forgotInput.trim()}". For demo accounts, use password "admin123" for admin or "pass2"/"pass3"/"pass4" for managers.`,
+      });
     }, 800);
   };
 
@@ -283,6 +324,61 @@ export default function LoginView({ onLogin }: LoginViewProps) {
             </div>
           </div>
 
+          {/* Remember Me & Forgot Password Row */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: "24px",
+              fontSize: "13px",
+            }}
+          >
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                cursor: "pointer",
+                userSelect: "none",
+                color: "var(--t2)",
+                fontWeight: 600,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  accentColor: "var(--brand)",
+                  cursor: "pointer",
+                }}
+              />
+              Remember me
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setForgotInput(username);
+                setForgotMsg(null);
+                setIsForgotModalOpen(true);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--brand)",
+                fontWeight: 700,
+                fontSize: "13px",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              Forgot password?
+            </button>
+          </div>
+
           {/* Submit Button */}
           <button
             type="submit"
@@ -318,6 +414,128 @@ export default function LoginView({ onLogin }: LoginViewProps) {
           </button>
         </form>
       </div>
+
+      {/* FORGOT PASSWORD MODAL */}
+      {isForgotModalOpen && (
+        <div
+          className="overlay open"
+          onClick={() => setIsForgotModalOpen(false)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+        >
+          <div
+            className="drawer"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "420px",
+              height: "auto",
+              borderRadius: "16px",
+              padding: "24px",
+              position: "relative",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
+              <h3 style={{ fontSize: "18px", fontWeight: 800, color: "var(--navy)", margin: 0 }}>
+                Reset Password
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsForgotModalOpen(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "20px",
+                  cursor: "pointer",
+                  color: "var(--t3)",
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {forgotMsg && (
+              <div
+                style={{
+                  backgroundColor: forgotMsg.type === "error" ? "#fef2f2" : "#f0fdf4",
+                  border: `1px solid ${forgotMsg.type === "error" ? "#fca5a5" : "#86efac"}`,
+                  color: forgotMsg.type === "error" ? "#b91c1c" : "#166534",
+                  padding: "10px 12px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  marginBottom: "16px",
+                  lineHeight: "1.5",
+                }}
+              >
+                {forgotMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={handleForgotSubmit}>
+              <p style={{ fontSize: "13px", color: "var(--t2)", marginTop: 0, marginBottom: "16px", lineHeight: "1.5" }}>
+                Enter your username or email address and we&apos;ll send you password recovery details.
+              </p>
+
+              <div className="df" style={{ marginBottom: "16px" }}>
+                <label className="df-label">Username or Email</label>
+                <input
+                  type="text"
+                  className="df-input"
+                  placeholder="e.g. admin or admin@maradi.com"
+                  value={forgotInput}
+                  onChange={(e) => setForgotInput(e.target.value)}
+                  disabled={forgotLoading}
+                />
+              </div>
+
+              {/* Credential Reference Box */}
+              <div
+                style={{
+                  backgroundColor: "#f8fafc",
+                  border: "1px dashed #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "10px 12px",
+                  marginBottom: "20px",
+                  fontSize: "12px",
+                  color: "var(--t2)",
+                  lineHeight: "1.6",
+                }}
+              >
+                <div style={{ fontWeight: 700, color: "var(--navy)", marginBottom: "4px" }}>
+                  Demo Accounts Reference:
+                </div>
+                <div>• <b>admin</b>: password <code>admin123</code></div>
+                <div>• <b>cred2</b> (Purchases): password <code>pass2</code></div>
+                <div>• <b>cred3</b> (Inventory): password <code>pass3</code></div>
+                <div>• <b>cred4</b> (Warping): password <code>pass4</code></div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setIsForgotModalOpen(false)}
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading ? "Sending..." : "Send Reset Link"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

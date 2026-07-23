@@ -7,12 +7,16 @@ interface ReconciliationViewProps {
   reconciliations: Reconciliation[];
   jobCards: JobCard[];
   warpingLogs: WarpingLog[];
+  onDeleteReconciliation?: (id: string) => void;
+  userRole?: string;
 }
 
 export default function ReconciliationView({
   reconciliations,
   jobCards,
   warpingLogs,
+  onDeleteReconciliation,
+  userRole = "admin",
 }: ReconciliationViewProps) {
   // Compute accurate real-time reconciliations from warped job cards
   const computedRecons: Reconciliation[] = jobCards
@@ -100,17 +104,34 @@ export default function ReconciliationView({
 
             return (
               <div className="recon-item" key={recon.id || idx}>
-                <div className="recon-top">
+                <div className="recon-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontSize: "14px", fontWeight: 700 }}>
                       Job Card: {recon.jobCardId}
                     </div>
                   </div>
-                  <span className={`bdg ${
-                    isDanger ? "bdg-danger" : isWarn ? "bdg-warn" : "bdg-ok"
-                  }`}>
-                    {recon.status}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className={`bdg ${
+                      isDanger ? "bdg-danger" : isWarn ? "bdg-warn" : "bdg-ok"
+                    }`}>
+                      {recon.status}
+                    </span>
+                    {userRole === "admin" && onDeleteReconciliation && (
+                      <button
+                        className="btn btn-outline"
+                        style={{ padding: "3px 8px", fontSize: "11px", color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const reconId = recon.id || recon.jobCardId;
+                          if (confirm(`Are you sure you want to delete reconciliation record for Job Card ${recon.jobCardId}?`)) {
+                            onDeleteReconciliation(reconId);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="recon-row">
                   <div>

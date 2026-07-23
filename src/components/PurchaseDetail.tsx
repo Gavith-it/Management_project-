@@ -28,6 +28,8 @@ interface PurchaseDetailProps {
   purchase: Purchase;
   onBack: () => void;
   onUpdateStatus: (id: string, newStatus: string, freightAmt?: number) => void;
+  onDeletePurchase?: (id: string) => void;
+  userRole?: string;
 }
 
 const SUPPLIER_DETAILS: Record<string, { address?: string; phone?: string; gst_no?: string; pan_no?: string; email?: string }> = {
@@ -48,13 +50,13 @@ const SUPPLIER_DETAILS: Record<string, { address?: string; phone?: string; gst_n
   "Kanchipuram Gold Threads": {
     address: "88 Temple Road, Kanchipuram",
     phone: "+91 94440 99887",
-    gst_no: "33AAACK4567M1Z3",
-    pan_no: "AAACK4567M",
+    gst_no: "33AACK4567M1Z3",
+    pan_no: "AACK4567M",
     email: "sales@kanchithreads.com"
   }
 };
 
-export default function PurchaseDetail({ purchase, onBack, onUpdateStatus }: PurchaseDetailProps) {
+export default function PurchaseDetail({ purchase, onBack, onUpdateStatus, onDeletePurchase, userRole = "admin" }: PurchaseDetailProps) {
   const [freightInput, setFreightInput] = useState<number | "">("");
 
   const getSupplierDetails = () => {
@@ -129,6 +131,20 @@ export default function PurchaseDetail({ purchase, onBack, onUpdateStatus }: Pur
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {userRole === "admin" && onDeletePurchase && (
+            <button
+              className="btn btn-outline"
+              style={{ color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete purchase ${purchase.id}?`)) {
+                  onDeletePurchase(purchase.id);
+                  onBack();
+                }
+              }}
+            >
+              Delete purchase
+            </button>
+          )}
           <button className="btn btn-outline" onClick={onBack}>
             &larr; Back to list
           </button>

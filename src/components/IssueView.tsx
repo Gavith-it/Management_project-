@@ -11,6 +11,7 @@ interface IssueViewProps {
   onSaveIssue: (issue: MaterialIssue) => void;
   onNewJobCard: (issueId: string) => void;
   onCompleteJobCard: (id: string, wastage: number, leftoverZari: number) => void;
+  onDeleteIssue?: (id: string) => void;
   userRole: string;
 }
 
@@ -22,6 +23,7 @@ export default function IssueView({
   onSaveIssue,
   onNewJobCard,
   onCompleteJobCard,
+  onDeleteIssue,
   userRole
 }: IssueViewProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -217,6 +219,20 @@ export default function IssueView({
             <button className="btn btn-outline" style={{ display: "flex", alignItems: "center", gap: "4px" }} onClick={() => setSelectedIssueId(null)}>
               &larr; Back
             </button>
+            {userRole === "admin" && onDeleteIssue && (
+              <button
+                className="btn btn-outline"
+                style={{ color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete material issue ${issue.id}?`)) {
+                    onDeleteIssue(issue.id);
+                    setSelectedIssueId(null);
+                  }
+                }}
+              >
+                Delete issue
+              </button>
+            )}
             {userRole === "admin" && (
               <button className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: "4px" }} onClick={() => onNewJobCard(issue.id)}>
                 + New job card
@@ -402,10 +418,24 @@ export default function IssueView({
                     Remaining <b>{remainingBobbins} bobbins</b>
                   </div>
                 </div>
-                <div className="li-right">
+                <div className="li-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
                   <span className={`bdg ${issue.status === "Active" ? "bdg-ok" : "bdg-gray"}`}>
                     {issue.status}
                   </span>
+                  {userRole === "admin" && onDeleteIssue && (
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: "3px 8px", fontSize: "11.5px", color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Are you sure you want to delete material issue ${issue.id}?`)) {
+                          onDeleteIssue(issue.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             );

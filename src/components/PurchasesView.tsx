@@ -24,6 +24,8 @@ interface PurchasesViewProps {
   purchases: Purchase[];
   onOpenNewPurchase: () => void;
   onUpdatePurchaseStatus: (id: string, newStatus: string, freightAmt?: number) => void;
+  onDeletePurchase?: (id: string) => void;
+  userRole?: string;
 }
 
 type TabFilter = "All" | "Pending" | "On hold" | "Recorded";
@@ -32,6 +34,8 @@ export default function PurchasesView({
   purchases,
   onOpenNewPurchase,
   onUpdatePurchaseStatus,
+  onDeletePurchase,
+  userRole = "admin",
 }: PurchasesViewProps) {
   const [activeTab, setActiveTab] = useState<TabFilter>("All");
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<string | null>(null);
@@ -78,6 +82,8 @@ export default function PurchasesView({
         purchase={selectedPurchase}
         onBack={() => setSelectedPurchaseId(null)}
         onUpdateStatus={onUpdatePurchaseStatus}
+        onDeletePurchase={onDeletePurchase}
+        userRole={userRole}
       />
     );
   }
@@ -149,8 +155,22 @@ export default function PurchasesView({
                     Amount: <b style={{ fontFamily: "var(--font-mono)", color: "var(--t1)" }}>₹{totalWithGst.toLocaleString("en-IN")}</b>
                   </div>
                 </div>
-                <div className="li-right">
+                <div className="li-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
                   <span className={`bdg ${getStatusBadgeClass(p.status)}`}>{p.status}</span>
+                  {userRole === "admin" && onDeletePurchase && (
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: "3px 8px", fontSize: "11.5px", color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Are you sure you want to delete purchase ${p.id}?`)) {
+                          onDeletePurchase(p.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             );

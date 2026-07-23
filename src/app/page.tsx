@@ -17,7 +17,16 @@ import {
   MaterialIssue,
   JobCard,
   WarpingLog,
-  Reconciliation
+  Reconciliation,
+  Supplier,
+  INITIAL_SUPPLIERS,
+  getSuppliers,
+  saveSupplier,
+  deletePurchase,
+  deleteMaterialIssue,
+  deleteJobCard,
+  deleteWarpingLog,
+  deleteReconciliation
 } from "@/utils/supabaseService";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import Sidebar from "@/components/Sidebar";
@@ -227,6 +236,7 @@ export default function Home() {
   const [userRole, setUserRole] = useState("admin");
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
   const [purchases, setPurchases] = useLocalStorage("maradi_purchases_v2", INITIAL_PURCHASES);
+  const [suppliers, setSuppliers] = useLocalStorage<Supplier[]>("maradi_suppliers_v1", INITIAL_SUPPLIERS);
 
   const [materialIssues, setMaterialIssues] = useLocalStorage<MaterialIssue[]>("maradi_issues_v1", INITIAL_ISSUES);
   const [jobCards, setJobCards] = useLocalStorage<JobCard[]>("maradi_jobcards_v1", INITIAL_JOBCARDS);
@@ -255,8 +265,8 @@ export default function Home() {
 
   // Sync auth state and purchases on mount
   useEffect(() => {
-    const authStatus = sessionStorage.getItem("maradi_authenticated");
-    const savedRole = sessionStorage.getItem("maradi_role") || "admin";
+    const authStatus = localStorage.getItem("maradi_authenticated") || sessionStorage.getItem("maradi_authenticated");
+    const savedRole = localStorage.getItem("maradi_role") || sessionStorage.getItem("maradi_role") || "admin";
     if (authStatus === "true") {
       setIsAuthenticated(true);
       setUserRole(savedRole);
@@ -264,6 +274,9 @@ export default function Home() {
     setHasCheckedAuth(true);
 
     async function syncData() {
+      const dbSuppliers = await getSuppliers(suppliers);
+      setSuppliers(dbSuppliers);
+
       const dbPurchases = await getPurchases(purchases);
       setPurchases(dbPurchases);
 
@@ -282,7 +295,7 @@ export default function Home() {
     syncData();
   }, []);
 
-  const handleLogin = (username: string) => {
+  const handleLogin = (username: string, rememberMe: boolean = true) => {
     let resolvedRole = "admin";
     const u = username.toLowerCase();
     if (u === "cred2") {
@@ -293,9 +306,11 @@ export default function Home() {
       resolvedRole = "warping_operator";
     }
 
-    sessionStorage.setItem("maradi_authenticated", "true");
-    sessionStorage.setItem("maradi_role", resolvedRole);
-    sessionStorage.setItem("maradi_username", username);
+    const storage = rememberMe ? localStorage : sessionStorage;
+    storage.setItem("maradi_authenticated", "true");
+    storage.setItem("maradi_role", resolvedRole);
+    storage.setItem("maradi_username", username);
+
     setIsAuthenticated(true);
     setUserRole(resolvedRole);
 
@@ -315,6 +330,9 @@ export default function Home() {
     sessionStorage.removeItem("maradi_authenticated");
     sessionStorage.removeItem("maradi_role");
     sessionStorage.removeItem("maradi_username");
+    localStorage.removeItem("maradi_authenticated");
+    localStorage.removeItem("maradi_role");
+    localStorage.removeItem("maradi_username");
     setIsAuthenticated(false);
     setUserRole("admin");
   };
@@ -327,6 +345,46 @@ export default function Home() {
       return isNaN(num) ? 0 : num;
     });
     return Math.max(...ids) + 1;
+  };
+
+  // Save/Update Supplier in local state & DB
+  const handleSaveSupplier = async (supplier: Supplier) => {
+    setSuppliers((prev) => {
+      const idx = prev.findIndex((s) => s.name.toLowerCase() === supplier.name.toLowerCase());
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = supplier;
+        return updated;
+      }
+      return [...prev, supplier];
+    });
+    await saveSupplier(supplier);
+  };
+
+  // Delete handlers
+  const handleDeletePurchase = async (id: string) => {
+    setPurchases((prev: any[]) => prev.filter((p: any) => p.id !== id));
+    await deletePurchase(id);
+  };
+
+  const handleDeleteMaterialIssue = async (id: string) => {
+    setMaterialIssues((prev) => prev.filter((i) => i.id !== id));
+    await deleteMaterialIssue(id);
+  };
+
+  const handleDeleteJobCard = async (id: string) => {
+    setJobCards((prev) => prev.filter((jc) => jc.id !== id));
+    await deleteJobCard(id);
+  };
+
+  const handleDeleteWarpingLog = async (id: string) => {
+    setWarpingLogs((prev) => prev.filter((w) => w.id !== id));
+    await deleteWarpingLog(id);
+  };
+
+  const handleDeleteReconciliation = async (id: string) => {
+    setReconciliations((prev) => prev.filter((r) => r.id !== id && r.jobCardId !== id));
+    await deleteReconciliation(id);
   };
 
   // Add new purchase to state and Supabase
@@ -477,6 +535,8 @@ export default function Home() {
             purchases={purchases}
             onOpenNewPurchase={() => setIsNewPurchaseOpen(true)}
             onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
+            onDeletePurchase={handleDeletePurchase}
+            userRole={userRole}
           />
         )}
 
@@ -489,6 +549,7 @@ export default function Home() {
             onSaveIssue={handleSaveMaterialIssue}
             onNewJobCard={handleNewJobCardFromIssue}
             onCompleteJobCard={handleCompleteJobCard}
+            onDeleteIssue={handleDeleteMaterialIssue}
             userRole={userRole}
           />
         )}
@@ -499,6 +560,8 @@ export default function Home() {
             issues={materialIssues}
             onSaveJobCard={handleSaveJobCard}
             onCompleteJobCard={handleCompleteJobCard}
+            onDeleteJobCard={handleDeleteJobCard}
+            userRole={userRole}
             preselectedIssueId={preselectedIssueId}
             clearPreselectedIssueId={() => setPreselectedIssueId(null)}
             openDrawerOnMount={shouldOpenJobCardDrawer}
@@ -512,6 +575,8 @@ export default function Home() {
             issues={materialIssues}
             warpingLogs={warpingLogs}
             onSaveWarpLog={handleSaveWarpingLog}
+            onDeleteWarpingLog={handleDeleteWarpingLog}
+            userRole={userRole}
           />
         )}
 
@@ -520,6 +585,8 @@ export default function Home() {
             reconciliations={reconciliations}
             jobCards={jobCards}
             warpingLogs={warpingLogs}
+            onDeleteReconciliation={handleDeleteReconciliation}
+            userRole={userRole}
           />
         )}
 
@@ -540,6 +607,8 @@ export default function Home() {
         isOpen={isNewPurchaseOpen}
         onClose={() => setIsNewPurchaseOpen(false)}
         onSave={handleSavePurchase}
+        suppliers={suppliers}
+        onSaveSupplier={handleSaveSupplier}
         nextId={getNextId()}
       />
     </div>

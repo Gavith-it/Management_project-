@@ -8,6 +8,8 @@ interface JobCardsViewProps {
   issues: MaterialIssue[];
   onSaveJobCard: (jc: JobCard) => void;
   onCompleteJobCard: (id: string, wastage: number, leftoverZari: number) => void;
+  onDeleteJobCard?: (id: string) => void;
+  userRole?: string;
   preselectedIssueId?: string | null;
   clearPreselectedIssueId?: () => void;
   openDrawerOnMount?: boolean;
@@ -19,6 +21,8 @@ export default function JobCardsView({
   issues, 
   onSaveJobCard,
   onCompleteJobCard,
+  onDeleteJobCard,
+  userRole = "admin",
   preselectedIssueId,
   clearPreselectedIssueId,
   openDrawerOnMount,
@@ -239,18 +243,34 @@ export default function JobCardsView({
                   }`}>
                     {jc.status}
                   </span>
-                  {jc.status === "Pending Warp" && (
-                    <button 
-                      className="btn btn-outline"
-                      style={{ padding: "4px 8px", fontSize: "11px", height: "24px" }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(jc);
-                      }}
-                    >
-                      Edit
-                    </button>
-                  )}
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    {jc.status === "Pending Warp" && (
+                      <button 
+                        className="btn btn-outline"
+                        style={{ padding: "4px 8px", fontSize: "11px", height: "24px" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(jc);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {userRole === "admin" && onDeleteJobCard && (
+                      <button
+                        className="btn btn-outline"
+                        style={{ padding: "4px 8px", fontSize: "11px", height: "24px", color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Are you sure you want to delete job card ${jc.id}?`)) {
+                            onDeleteJobCard(jc.id);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                   {(jc.status === "Needs Review" || jc.status === "Completed") && (
                     <button
                       className="btn btn-outline"

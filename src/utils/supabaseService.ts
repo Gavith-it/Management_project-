@@ -1,5 +1,108 @@
 import { supabase, getIsSupabaseConfigured } from "./supabaseClient";
 
+export interface Supplier {
+  id?: string;
+  name: string;
+  phone?: string;
+  gst_no?: string;
+  pan_no?: string;
+  address?: string;
+  email?: string;
+  info?: string;
+}
+
+export const INITIAL_SUPPLIERS: Supplier[] = [
+  {
+    name: "Vellore Zari Co.",
+    phone: "+91 98400 11223",
+    gst_no: "33AACCV1234F1Z5",
+    pan_no: "AACCV1234F",
+    email: "info@vellorezari.com",
+    address: "14 Thread Bazaar Rd, Vellore",
+    info: "14 Thread Bazaar Rd, Vellore · +91 98400 11223 · GST: 33AACCV1234F1Z5",
+  },
+  {
+    name: "Surat Metallic Threads",
+    phone: "+91 99044 55667",
+    gst_no: "24AABCS5678D2Z9",
+    pan_no: "AABCS5678D",
+    email: "contact@suratmetallic.com",
+    address: "88 Ring Road, Surat",
+    info: "88 Ring Road, Surat · +91 99044 55667 · GST: 24AABCS5678D2Z9",
+  },
+  {
+    name: "Kanchipuram Gold Threads",
+    phone: "+91 94430 88991",
+    gst_no: "33AAFCK1122G3Z4",
+    pan_no: "AAFCK1122G",
+    email: "sales@kanchithreads.com",
+    address: "3 Zari Street, Kanchipuram",
+    info: "3 Zari Street, Kanchipuram · +91 94430 88991 · GST: 33AAFCK1122G3Z4",
+  },
+];
+
+export async function getSuppliers(fallbackData: Supplier[]): Promise<Supplier[]> {
+  if (!getIsSupabaseConfigured()) {
+    return fallbackData;
+  }
+  try {
+    const { data, error } = await supabase
+      .from("suppliers")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching suppliers from Supabase:", error.message);
+      return fallbackData;
+    }
+
+    if (data && data.length > 0) {
+      return data.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        phone: s.phone || "",
+        gst_no: s.gst_no || "",
+        pan_no: s.pan_no || "",
+        address: s.address || "",
+        email: s.email || "",
+        info: `${s.address ? s.address + " · " : ""}${s.phone ? s.phone + " · " : ""}${s.gst_no ? "GST: " + s.gst_no : ""}`.replace(/ · $/, ""),
+      }));
+    }
+  } catch (err) {
+    console.error("Supabase suppliers fetch failed:", err);
+  }
+  return fallbackData;
+}
+
+export async function saveSupplier(supplier: Supplier): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) {
+    return false;
+  }
+  try {
+    const dbSupplier = {
+      name: supplier.name,
+      phone: supplier.phone || null,
+      gst_no: supplier.gst_no || null,
+      pan_no: supplier.pan_no || null,
+      address: supplier.address || null,
+      email: supplier.email || null,
+    };
+
+    const { error } = await supabase
+      .from("suppliers")
+      .upsert(dbSupplier, { onConflict: "name" });
+
+    if (error) {
+      console.error("Failed to save supplier in Supabase:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase save supplier failed:", err);
+    return false;
+  }
+}
+
 export interface Purchase {
   id: string;
   vendor: string;
@@ -21,6 +124,7 @@ export interface Purchase {
   vendorEmail?: string;
   vendorAddress?: string;
 }
+
 
 /**
  * Maps database row format to frontend Purchase interface format
@@ -492,3 +596,79 @@ export async function saveReconciliation(recon: Reconciliation): Promise<boolean
     return false;
   }
 }
+
+export async function deletePurchase(id: string): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return true;
+  try {
+    const { error } = await supabase.from("purchases").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete purchase from Supabase:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase delete purchase failed:", err);
+    return false;
+  }
+}
+
+export async function deleteMaterialIssue(id: string): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return true;
+  try {
+    const { error } = await supabase.from("material_issues").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete material_issue from Supabase:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase delete material_issue failed:", err);
+    return false;
+  }
+}
+
+export async function deleteJobCard(id: string): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return true;
+  try {
+    const { error } = await supabase.from("job_cards").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete job_card from Supabase:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase delete job_card failed:", err);
+    return false;
+  }
+}
+
+export async function deleteWarpingLog(id: string): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return true;
+  try {
+    const { error } = await supabase.from("warping_logs").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete warping_log from Supabase:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase delete warping_log failed:", err);
+    return false;
+  }
+}
+
+export async function deleteReconciliation(id: string): Promise<boolean> {
+  if (!getIsSupabaseConfigured()) return true;
+  try {
+    const { error } = await supabase.from("reconciliations").delete().eq("id", id);
+    if (error) {
+      console.error("Failed to delete reconciliation from Supabase:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Supabase delete reconciliation failed:", err);
+    return false;
+  }
+}
+

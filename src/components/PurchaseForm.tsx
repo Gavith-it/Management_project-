@@ -2,33 +2,30 @@
 
 import React, { useState, useEffect } from "react";
 import { sanitizeString, isValidNumber, isValidLength } from "@/utils/security";
+import { Supplier, INITIAL_SUPPLIERS } from "@/utils/supabaseService";
 
 interface PurchaseFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (newPurchase: any) => void;
+  suppliers?: Supplier[];
+  onSaveSupplier?: (supplier: Supplier) => void;
   nextId: number;
 }
 
-const SUPPLIERS = [
-  {
-    name: "Vellore Zari Co.",
-    info: "14 Thread Bazaar Rd, Vellore · +91 98400 11223 · GST: 33AACCV1234F1Z5",
-  },
-  {
-    name: "Surat Metallic Threads",
-    info: "88 Ring Road, Surat · +91 99044 55667 · GST: 24AABCS5678D2Z9",
-  },
-  {
-    name: "Kanchipuram Gold Threads",
-    info: "3 Zari Street, Kanchipuram · +91 94430 88991 · GST: 33AAFCK1122G3Z4",
-  },
-];
-
-export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: PurchaseFormProps) {
+export default function PurchaseForm({
+  isOpen,
+  onClose,
+  onSave,
+  suppliers = INITIAL_SUPPLIERS,
+  onSaveSupplier,
+  nextId,
+}: PurchaseFormProps) {
   const [date, setDate] = useState("");
   const [vendor, setVendor] = useState("Vellore Zari Co.");
   const [isCustomVendor, setIsCustomVendor] = useState(false);
+  const [isEditingSupplier, setIsEditingSupplier] = useState(false);
+
   const [customVendorName, setCustomVendorName] = useState("");
   const [customVendorPhone, setCustomVendorPhone] = useState("+91");
   const [customVendorGst, setCustomVendorGst] = useState("");
@@ -51,6 +48,8 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
   const [errorMsg, setErrorMsg] = useState("");
   const [total, setTotal] = useState(0);
 
+  const activeSuppliers = suppliers.length > 0 ? suppliers : INITIAL_SUPPLIERS;
+
   // Initialize date and batch ID when form opens
   useEffect(() => {
     if (isOpen) {
@@ -62,8 +61,10 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
   }, [isOpen, nextId]);
 
   const resetForm = () => {
-    setVendor("Vellore Zari Co.");
+    const defaultVendor = activeSuppliers[0]?.name || "Vellore Zari Co.";
+    setVendor(defaultVendor);
     setIsCustomVendor(false);
+    setIsEditingSupplier(false);
     setCustomVendorName("");
     setCustomVendorPhone("+91");
     setCustomVendorGst("");
@@ -99,10 +100,31 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
   const handleVendorChange = (val: string) => {
     if (val === "new") {
       setIsCustomVendor(true);
+      setIsEditingSupplier(false);
       setVendor("");
+      setCustomVendorName("");
+      setCustomVendorPhone("+91");
+      setCustomVendorGst("");
+      setCustomVendorPan("");
+      setCustomVendorEmail("");
+      setCustomVendorAddress("");
     } else {
       setIsCustomVendor(false);
+      setIsEditingSupplier(false);
       setVendor(val);
+    }
+  };
+
+  const handleStartEditSupplier = () => {
+    const s = activeSuppliers.find((sup) => sup.name === vendor);
+    if (s) {
+      setCustomVendorName(s.name);
+      setCustomVendorPhone(s.phone || "+91");
+      setCustomVendorGst(s.gst_no || "");
+      setCustomVendorPan(s.pan_no || "");
+      setCustomVendorEmail(s.email || "");
+      setCustomVendorAddress(s.address || "");
+      setIsEditingSupplier(true);
     }
   };
 
@@ -125,19 +147,17 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
     }
   };
 
-
-
   const handleSave = () => {
     // 1. Validation & Sanitation
-    const finalVendor = isCustomVendor ? customVendorName.trim() : vendor;
+    const finalVendor = (isCustomVendor || isEditingSupplier) ? customVendorName.trim() : vendor;
 
     if (!finalVendor) {
       setErrorMsg("Please select or enter a supplier.");
       return;
     }
 
-    // Validations for custom vendor fields
-    if (isCustomVendor) {
+    // Validations for custom/editing vendor fields
+    if (isCustomVendor || isEditingSupplier) {
       if (customVendorPhone !== "+91") {
         const digits = customVendorPhone.substring(3);
         if (digits.length !== 10) {
@@ -166,7 +186,29 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
           return;
         }
       }
+
+      // Save/update supplier in global list and Supabase
+      if (onSaveSupplier) {
+        const infoStr = [
+          customVendorAddress.trim(),
+          customVendorPhone !== "+91" ? customVendorPhone : "",
+          customVendorGst.trim() ? `GST: ${customVendorGst.trim().toUpperCase()}` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+        onSaveSupplier({
+          name: finalVendor,
+          phone: customVendorPhone !== "+91" ? customVendorPhone : "",
+          gst_no: customVendorGst.trim().toUpperCase(),
+          pan_no: customVendorPan.trim().toUpperCase(),
+          email: customVendorEmail.trim(),
+          address: customVendorAddress.trim(),
+          info: infoStr,
+        });
+      }
     }
+
     if (!itemName.trim()) {
       setErrorMsg("Item Name is required.");
       return;
@@ -227,7 +269,7 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
       total: total,
       batch: batchId,
       date: date || new Date().toISOString().split("T")[0],
-      status: "Recorded", // New purchases are recorded automatically (future SAP integration)
+      status: "Recorded",
       invoice: sanitizedInvoice,
       itemName: sanitizedItemName,
       itemId: sanitizedItemId,
@@ -235,19 +277,29 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
       remarks: sanitizedRemarks 
         ? `[GST Type: ${gstType}] ${sanitizedRemarks}` 
         : `[GST Type: ${gstType}] New purchase created.`,
-      // Custom vendor details for DB insert
-      vendorPhone: isCustomVendor && customVendorPhone !== "+91" ? customVendorPhone : "",
-      vendorGst: isCustomVendor ? customVendorGst.trim().toUpperCase() : "",
-      vendorPan: isCustomVendor ? customVendorPan.trim().toUpperCase() : "",
-      vendorEmail: isCustomVendor ? customVendorEmail.trim() : "",
-      vendorAddress: isCustomVendor ? customVendorAddress.trim() : "",
+      // Custom/edited vendor details for DB insert
+      vendorPhone: (isCustomVendor || isEditingSupplier) && customVendorPhone !== "+91" ? customVendorPhone : "",
+      vendorGst: (isCustomVendor || isEditingSupplier) ? customVendorGst.trim().toUpperCase() : "",
+      vendorPan: (isCustomVendor || isEditingSupplier) ? customVendorPan.trim().toUpperCase() : "",
+      vendorEmail: (isCustomVendor || isEditingSupplier) ? customVendorEmail.trim() : "",
+      vendorAddress: (isCustomVendor || isEditingSupplier) ? customVendorAddress.trim() : "",
     };
 
     onSave(newPurchase);
     onClose();
   };
 
-  const selectedSupplierInfo = SUPPLIERS.find((s) => s.name === vendor)?.info || "";
+  const selectedSupplierObj = activeSuppliers.find((s) => s.name === vendor);
+  const selectedSupplierInfo = selectedSupplierObj
+    ? selectedSupplierObj.info ||
+      [
+        selectedSupplierObj.address,
+        selectedSupplierObj.phone,
+        selectedSupplierObj.gst_no ? `GST: ${selectedSupplierObj.gst_no}` : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   return (
     <div className="overlay open">
@@ -287,14 +339,40 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
 
           {/* Supplier */}
           <div className="df">
-            <label className="df-label" htmlFor="supplierSelect">Supplier</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label className="df-label" htmlFor="supplierSelect">Supplier</label>
+              {!isCustomVendor && vendor && !isEditingSupplier && (
+                <button
+                  type="button"
+                  onClick={handleStartEditSupplier}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--brand)",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "0",
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Edit Supplier Details
+                </button>
+              )}
+            </div>
             <select
               id="supplierSelect"
               className="df-input"
               value={isCustomVendor ? "new" : vendor}
               onChange={(e) => handleVendorChange(e.target.value)}
             >
-              {SUPPLIERS.map((s) => (
+              {activeSuppliers.map((s) => (
                 <option key={s.name} value={s.name}>
                   {s.name}
                 </option>
@@ -303,14 +381,28 @@ export default function PurchaseForm({ isOpen, onClose, onSave, nextId }: Purcha
             </select>
           </div>
 
-          {!isCustomVendor && selectedSupplierInfo && (
-            <div className="info-box" style={{ fontSize: "13px" }}>
+          {!isCustomVendor && !isEditingSupplier && selectedSupplierInfo && (
+            <div className="info-box" style={{ fontSize: "13px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ color: "var(--t2)", lineHeight: "1.7" }}>{selectedSupplierInfo}</div>
             </div>
           )}
 
-          {isCustomVendor && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {(isCustomVendor || isEditingSupplier) && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", backgroundColor: "#F7F9FC", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--brand)" }}>
+                  {isEditingSupplier ? `Editing Supplier: ${vendor}` : "Add New Supplier Details"}
+                </span>
+                {isEditingSupplier && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingSupplier(false)}
+                    style={{ background: "none", border: "none", color: "var(--t3)", fontSize: "11px", cursor: "pointer" }}
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
               <div className="df2">
                 <div className="df">
                   <label className="df-label">Supplier name</label>
