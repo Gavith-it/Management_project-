@@ -29,6 +29,7 @@ interface PurchaseDetailProps {
   onBack: () => void;
   onUpdateStatus: (id: string, newStatus: string, freightAmt?: number) => void;
   onDeletePurchase?: (id: string) => void;
+  onEditPurchase?: (purchase: Purchase) => void;
   userRole?: string;
 }
 
@@ -56,7 +57,7 @@ const SUPPLIER_DETAILS: Record<string, { address?: string; phone?: string; gst_n
   }
 };
 
-export default function PurchaseDetail({ purchase, onBack, onUpdateStatus, onDeletePurchase, userRole = "admin" }: PurchaseDetailProps) {
+export default function PurchaseDetail({ purchase, onBack, onUpdateStatus, onDeletePurchase, onEditPurchase, userRole = "admin" }: PurchaseDetailProps) {
   const [freightInput, setFreightInput] = useState<number | "">("");
 
   const getSupplierDetails = () => {
@@ -131,6 +132,14 @@ export default function PurchaseDetail({ purchase, onBack, onUpdateStatus, onDel
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {(userRole === "admin" || userRole === "purchases_manager") && onEditPurchase && (
+            <button
+              className="btn btn-outline"
+              onClick={() => onEditPurchase(purchase)}
+            >
+              Edit purchase
+            </button>
+          )}
           {userRole === "admin" && onDeletePurchase && (
             <button
               className="btn btn-outline"

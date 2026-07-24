@@ -61,6 +61,15 @@ input, select, textarea {
   appearance: none;
 }
 
+input[type="checkbox"] {
+  -webkit-appearance: checkbox;
+  appearance: checkbox;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
 /* ===== SHELL ===== */
 .shell {
   display: flex;

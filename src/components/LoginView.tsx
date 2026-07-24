@@ -20,11 +20,19 @@ export default function LoginView({ onLogin }: LoginViewProps) {
   const [forgotMsg, setForgotMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [forgotLoading, setForgotLoading] = useState(false);
 
-  // Pre-fill remembered username on mount if available
+  // Pre-fill remembered username and password on mount if available
   useEffect(() => {
     const savedUser = localStorage.getItem("maradi_remembered_username");
+    const savedPass = localStorage.getItem("maradi_remembered_password");
+    const savedRemember = localStorage.getItem("maradi_remember_me");
     if (savedUser) {
       setUsername(savedUser);
+    }
+    if (savedPass) {
+      setPassword(savedPass);
+    }
+    if (savedRemember !== null) {
+      setRememberMe(savedRemember === "true");
     }
   }, []);
 
@@ -42,11 +50,15 @@ export default function LoginView({ onLogin }: LoginViewProps) {
 
     setLoading(true);
 
-    // Save or clear remembered username
+    // Save or clear remembered username & password & flag
     if (rememberMe) {
       localStorage.setItem("maradi_remembered_username", trimmedUser);
+      localStorage.setItem("maradi_remembered_password", trimmedPass);
+      localStorage.setItem("maradi_remember_me", "true");
     } else {
       localStorage.removeItem("maradi_remembered_username");
+      localStorage.removeItem("maradi_remembered_password");
+      localStorage.setItem("maradi_remember_me", "false");
     }
 
     // Simulate authenticating for 4 user credential roles
@@ -221,6 +233,8 @@ export default function LoginView({ onLogin }: LoginViewProps) {
               </div>
               <input
                 id="usernameInput"
+                name="username"
+                autoComplete="username"
                 type="text"
                 className="df-input"
                 placeholder="Username"
@@ -271,6 +285,8 @@ export default function LoginView({ onLogin }: LoginViewProps) {
               </div>
               <input
                 id="passwordInput"
+                name="password"
+                autoComplete="current-password"
                 type={showPassword ? "text" : "password"}
                 className="df-input"
                 placeholder="Password"

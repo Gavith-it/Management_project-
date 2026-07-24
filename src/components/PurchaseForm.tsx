@@ -11,6 +11,7 @@ interface PurchaseFormProps {
   suppliers?: Supplier[];
   onSaveSupplier?: (supplier: Supplier) => void;
   nextId: number;
+  editingPurchase?: any | null;
 }
 
 export default function PurchaseForm({
@@ -20,6 +21,7 @@ export default function PurchaseForm({
   suppliers = INITIAL_SUPPLIERS,
   onSaveSupplier,
   nextId,
+  editingPurchase,
 }: PurchaseFormProps) {
   const [date, setDate] = useState("");
   const [vendor, setVendor] = useState("Vellore Zari Co.");
@@ -46,42 +48,71 @@ export default function PurchaseForm({
   const [itemId, setItemId] = useState("RM-000009");
 
   const [errorMsg, setErrorMsg] = useState("");
+  const [supplierSuccessMsg, setSupplierSuccessMsg] = useState("");
   const [total, setTotal] = useState(0);
 
   const activeSuppliers = suppliers.length > 0 ? suppliers : INITIAL_SUPPLIERS;
 
-  // Initialize date and batch ID when form opens
+  // Initialize date, batch ID, and form fields when form opens or editingPurchase changes
   useEffect(() => {
     if (isOpen) {
-      const today = new Date().toISOString().split("T")[0];
-      setDate(today);
       setErrorMsg("");
+      setSupplierSuccessMsg("");
       resetForm();
     }
-  }, [isOpen, nextId]);
+  }, [isOpen, nextId, editingPurchase]);
 
   const resetForm = () => {
-    const defaultVendor = activeSuppliers[0]?.name || "Vellore Zari Co.";
-    setVendor(defaultVendor);
-    setIsCustomVendor(false);
-    setIsEditingSupplier(false);
-    setCustomVendorName("");
-    setCustomVendorPhone("+91");
-    setCustomVendorGst("");
-    setCustomVendorPan("");
-    setCustomVendorEmail("");
-    setCustomVendorAddress("");
-    setInvoice(`INV-2026-${String(nextId).padStart(4, "0")}`);
-    setBatchId(`PZ26-${String(nextId).padStart(4, "0")}`);
-    setMarks("");
-    setRate("");
-    setGstType("IGST");
-    setGst(18);
-    setFreight("");
-    setRemarks("");
-    setItemName("");
-    setItemId("RM-000009");
-    setTotal(0);
+    if (editingPurchase) {
+      setVendor(editingPurchase.vendor || activeSuppliers[0]?.name || "Vellore Zari Co.");
+      setDate(editingPurchase.date || new Date().toISOString().split("T")[0]);
+      setInvoice(editingPurchase.invoice || "");
+      setBatchId(editingPurchase.batch || "");
+      setItemName(editingPurchase.itemName || "");
+      setItemId(editingPurchase.itemId || "");
+      setFreight(editingPurchase.freight !== undefined ? editingPurchase.freight : "");
+      setMarks(editingPurchase.marks !== undefined ? editingPurchase.marks : "");
+      setRate(editingPurchase.rate !== undefined ? editingPurchase.rate : "");
+      setGst(editingPurchase.gst !== undefined ? editingPurchase.gst : 18);
+      
+      // Parse remarks if GST type tag is present
+      const rem = editingPurchase.remarks || "";
+      if (rem.includes("[GST Type: CGST + SGST]")) {
+        setGstType("CGST + SGST");
+        setRemarks(rem.replace("[GST Type: CGST + SGST]", "").trim());
+      } else if (rem.includes("[GST Type: IGST]")) {
+        setGstType("IGST");
+        setRemarks(rem.replace("[GST Type: IGST]", "").trim());
+      } else {
+        setGstType("IGST");
+        setRemarks(rem);
+      }
+      setIsCustomVendor(false);
+      setIsEditingSupplier(false);
+    } else {
+      const defaultVendor = activeSuppliers[0]?.name || "Vellore Zari Co.";
+      setVendor(defaultVendor);
+      setDate(new Date().toISOString().split("T")[0]);
+      setIsCustomVendor(false);
+      setIsEditingSupplier(false);
+      setCustomVendorName("");
+      setCustomVendorPhone("+91");
+      setCustomVendorGst("");
+      setCustomVendorPan("");
+      setCustomVendorEmail("");
+      setCustomVendorAddress("");
+      setInvoice(`INV-2026-${String(nextId).padStart(4, "0")}`);
+      setBatchId(`PZ26-${String(nextId).padStart(4, "0")}`);
+      setMarks("");
+      setRate("");
+      setGstType("IGST");
+      setGst(18);
+      setFreight("");
+      setRemarks("");
+      setItemName("");
+      setItemId("RM-000009");
+      setTotal(0);
+    }
   };
 
   // Calculate total automatically (freight charges added to subtotal before applying GST)
@@ -98,6 +129,7 @@ export default function PurchaseForm({
   if (!isOpen) return null;
 
   const handleVendorChange = (val: string) => {
+    setSupplierSuccessMsg("");
     if (val === "new") {
       setIsCustomVendor(true);
       setIsEditingSupplier(false);
@@ -116,6 +148,7 @@ export default function PurchaseForm({
   };
 
   const handleStartEditSupplier = () => {
+    setSupplierSuccessMsg("");
     const s = activeSuppliers.find((sup) => sup.name === vendor);
     if (s) {
       setCustomVendorName(s.name);
@@ -126,6 +159,72 @@ export default function PurchaseForm({
       setCustomVendorAddress(s.address || "");
       setIsEditingSupplier(true);
     }
+  };
+
+  const handleStandaloneSaveSupplier = () => {
+    setSupplierSuccessMsg("");
+    setErrorMsg("");
+    const nameToSave = customVendorName.trim();
+    if (!nameToSave) {
+      setErrorMsg("Supplier name is required.");
+      return;
+    }
+
+    if (customVendorPhone !== "+91") {
+      const digits = customVendorPhone.substring(3);
+      if (digits.length !== 10) {
+        setErrorMsg("Please enter exactly 10 digits for the phone number after +91.");
+        return;
+      }
+    }
+    if (customVendorGst.trim()) {
+      const cleanGst = customVendorGst.trim();
+      if (cleanGst.length !== 15 || !/^[A-Z0-9]+$/i.test(cleanGst)) {
+        setErrorMsg("Please enter a valid 15-character alphanumeric GST number.");
+        return;
+      }
+    }
+    if (customVendorPan.trim()) {
+      const cleanPan = customVendorPan.trim();
+      if (cleanPan.length !== 10 || !/^[A-Z0-9]+$/i.test(cleanPan)) {
+        setErrorMsg("Please enter a valid 10-character alphanumeric PAN number.");
+        return;
+      }
+    }
+    if (customVendorEmail.trim()) {
+      const cleanEmail = customVendorEmail.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        setErrorMsg("Please enter a valid email address.");
+        return;
+      }
+    }
+
+    const infoStr = [
+      customVendorAddress.trim(),
+      customVendorPhone !== "+91" ? customVendorPhone : "",
+      customVendorGst.trim() ? `GST: ${customVendorGst.trim().toUpperCase()}` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    const supplierObj: Supplier = {
+      name: nameToSave,
+      phone: customVendorPhone !== "+91" ? customVendorPhone : "",
+      gst_no: customVendorGst.trim().toUpperCase(),
+      pan_no: customVendorPan.trim().toUpperCase(),
+      email: customVendorEmail.trim(),
+      address: customVendorAddress.trim(),
+      info: infoStr,
+    };
+
+    if (onSaveSupplier) {
+      onSaveSupplier(supplierObj);
+    }
+
+    setVendor(nameToSave);
+    setIsCustomVendor(false);
+    setIsEditingSupplier(false);
+    setSupplierSuccessMsg(`Supplier details for "${nameToSave}" saved successfully!`);
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,8 +359,8 @@ export default function PurchaseForm({
     const sanitizedRemarks = sanitizeString(remarks.trim());
 
     // Prepare purchase object
-    const newPurchase = {
-      id: `PUR-${String(nextId).padStart(4, "0")}`,
+    const purchaseObj = {
+      id: editingPurchase ? editingPurchase.id : `PUR-${String(nextId).padStart(4, "0")}`,
       vendor: sanitizedVendor,
       marks: Number(marks),
       rate: Number(rate),
@@ -269,14 +368,14 @@ export default function PurchaseForm({
       total: total,
       batch: batchId,
       date: date || new Date().toISOString().split("T")[0],
-      status: "Recorded",
+      status: editingPurchase ? editingPurchase.status : "Recorded",
       invoice: sanitizedInvoice,
       itemName: sanitizedItemName,
       itemId: sanitizedItemId,
       freight: Number(freight) || 0,
       remarks: sanitizedRemarks 
         ? `[GST Type: ${gstType}] ${sanitizedRemarks}` 
-        : `[GST Type: ${gstType}] New purchase created.`,
+        : `[GST Type: ${gstType}] ${editingPurchase ? "Purchase updated." : "New purchase created."}`,
       // Custom/edited vendor details for DB insert
       vendorPhone: (isCustomVendor || isEditingSupplier) && customVendorPhone !== "+91" ? customVendorPhone : "",
       vendorGst: (isCustomVendor || isEditingSupplier) ? customVendorGst.trim().toUpperCase() : "",
@@ -285,7 +384,7 @@ export default function PurchaseForm({
       vendorAddress: (isCustomVendor || isEditingSupplier) ? customVendorAddress.trim() : "",
     };
 
-    onSave(newPurchase);
+    onSave(purchaseObj);
     onClose();
   };
 
@@ -306,7 +405,9 @@ export default function PurchaseForm({
       <div className="drawer">
         {/* HEADER */}
         <div className="dh">
-          <div className="dh-title">New Purchase</div>
+          <div className="dh-title">
+            {editingPurchase ? `Edit Purchase (${editingPurchase.id})` : "New Purchase"}
+          </div>
           <div className="dh-right">
             <input
               type="date"
@@ -334,6 +435,12 @@ export default function PurchaseForm({
           {errorMsg && (
             <div className="tally danger" style={{ marginBottom: "12px", fontSize: "13px" }}>
               {errorMsg}
+            </div>
+          )}
+
+          {supplierSuccessMsg && (
+            <div className="tally ok" style={{ marginBottom: "12px", fontSize: "13px" }}>
+              {supplierSuccessMsg}
             </div>
           )}
 
@@ -463,6 +570,36 @@ export default function PurchaseForm({
                     onChange={(e) => setCustomVendorAddress(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Dedicated Save Supplier Details Button inside Supplier Container */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid var(--line)" }}>
+                {isEditingSupplier && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ padding: "5px 12px", fontSize: "12px" }}
+                    onClick={() => {
+                      setIsEditingSupplier(false);
+                      setSupplierSuccessMsg("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: "6px 14px", fontSize: "12px", height: "32px", backgroundColor: "var(--brand)", borderColor: "var(--brand)", color: "#fff" }}
+                  onClick={handleStandaloneSaveSupplier}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: "4px" }}>
+                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  {isEditingSupplier ? "Save Supplier Details" : "Save New Supplier"}
+                </button>
               </div>
             </div>
           )}
@@ -618,7 +755,7 @@ export default function PurchaseForm({
             Cancel
           </button>
           <button className="btn btn-primary" onClick={handleSave}>
-            Save Purchase
+            {editingPurchase ? "Update Purchase" : "Save Purchase"}
           </button>
         </div>
       </div>

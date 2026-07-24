@@ -25,6 +25,7 @@ interface PurchasesViewProps {
   onOpenNewPurchase: () => void;
   onUpdatePurchaseStatus: (id: string, newStatus: string, freightAmt?: number) => void;
   onDeletePurchase?: (id: string) => void;
+  onEditPurchase?: (purchase: Purchase) => void;
   userRole?: string;
 }
 
@@ -35,6 +36,7 @@ export default function PurchasesView({
   onOpenNewPurchase,
   onUpdatePurchaseStatus,
   onDeletePurchase,
+  onEditPurchase,
   userRole = "admin",
 }: PurchasesViewProps) {
   const [activeTab, setActiveTab] = useState<TabFilter>("All");
@@ -83,6 +85,7 @@ export default function PurchasesView({
         onBack={() => setSelectedPurchaseId(null)}
         onUpdateStatus={onUpdatePurchaseStatus}
         onDeletePurchase={onDeletePurchase}
+        onEditPurchase={onEditPurchase}
         userRole={userRole}
       />
     );
@@ -157,20 +160,34 @@ export default function PurchasesView({
                 </div>
                 <div className="li-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
                   <span className={`bdg ${getStatusBadgeClass(p.status)}`}>{p.status}</span>
-                  {userRole === "admin" && onDeletePurchase && (
-                    <button
-                      className="btn btn-outline"
-                      style={{ padding: "3px 8px", fontSize: "11.5px", color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Are you sure you want to delete purchase ${p.id}?`)) {
-                          onDeletePurchase(p.id);
-                        }
-                      }}
-                    >
-                      Delete
-                    </button>
-                  )}
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    {(userRole === "admin" || userRole === "purchases_manager") && onEditPurchase && (
+                      <button
+                        className="btn btn-outline"
+                        style={{ padding: "3px 8px", fontSize: "11.5px" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditPurchase(p);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {userRole === "admin" && onDeletePurchase && (
+                      <button
+                        className="btn btn-outline"
+                        style={{ padding: "3px 8px", fontSize: "11.5px", color: "var(--danger)", borderColor: "rgba(220,53,69,0.3)" }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Are you sure you want to delete purchase ${p.id}?`)) {
+                            onDeletePurchase(p.id);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

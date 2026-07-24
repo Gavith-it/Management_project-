@@ -235,6 +235,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<ViewType>("dashboard");
   const [userRole, setUserRole] = useState("admin");
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
+  const [editingPurchase, setEditingPurchase] = useState<any | null>(null);
   const [purchases, setPurchases] = useLocalStorage("maradi_purchases_v2", INITIAL_PURCHASES);
   const [suppliers, setSuppliers] = useLocalStorage<Supplier[]>("maradi_suppliers_v1", INITIAL_SUPPLIERS);
 
@@ -347,6 +348,30 @@ export default function Home() {
     return Math.max(...ids) + 1;
   };
 
+  // Save/Update Purchase in local state & DB
+  const handleSavePurchase = async (purchase: any) => {
+    setPurchases((prev: any[]) => {
+      const idx = prev.findIndex((p: any) => p.id === purchase.id);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = purchase;
+        return updated;
+      }
+      return [purchase, ...prev];
+    });
+    await savePurchase(purchase);
+  };
+
+  const handleOpenEditPurchase = (purchaseToEdit: any) => {
+    setEditingPurchase(purchaseToEdit);
+    setIsNewPurchaseOpen(true);
+  };
+
+  const handleClosePurchaseForm = () => {
+    setIsNewPurchaseOpen(false);
+    setEditingPurchase(null);
+  };
+
   // Save/Update Supplier in local state & DB
   const handleSaveSupplier = async (supplier: Supplier) => {
     setSuppliers((prev) => {
@@ -385,12 +410,6 @@ export default function Home() {
   const handleDeleteReconciliation = async (id: string) => {
     setReconciliations((prev) => prev.filter((r) => r.id !== id && r.jobCardId !== id));
     await deleteReconciliation(id);
-  };
-
-  // Add new purchase to state and Supabase
-  const handleSavePurchase = async (newPurchase: any) => {
-    setPurchases([newPurchase, ...purchases]);
-    await savePurchase(newPurchase);
   };
 
   // Add new material issue to state and Supabase
@@ -533,9 +552,13 @@ export default function Home() {
         {activeView === "purchases" && (userRole === "admin" || userRole === "purchases_manager") && (
           <PurchasesView
             purchases={purchases}
-            onOpenNewPurchase={() => setIsNewPurchaseOpen(true)}
+            onOpenNewPurchase={() => {
+              setEditingPurchase(null);
+              setIsNewPurchaseOpen(true);
+            }}
             onUpdatePurchaseStatus={handleUpdatePurchaseStatus}
             onDeletePurchase={handleDeletePurchase}
+            onEditPurchase={handleOpenEditPurchase}
             userRole={userRole}
           />
         )}
@@ -602,14 +625,15 @@ export default function Home() {
         userRole={userRole}
       />
 
-      {/* NEW PURCHASE DRAWER */}
+      {/* NEW/EDIT PURCHASE DRAWER */}
       <PurchaseForm
         isOpen={isNewPurchaseOpen}
-        onClose={() => setIsNewPurchaseOpen(false)}
+        onClose={handleClosePurchaseForm}
         onSave={handleSavePurchase}
         suppliers={suppliers}
         onSaveSupplier={handleSaveSupplier}
         nextId={getNextId()}
+        editingPurchase={editingPurchase}
       />
     </div>
   );
