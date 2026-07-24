@@ -13,6 +13,7 @@ interface IssueViewProps {
   onCompleteJobCard: (id: string, wastage: number, leftoverZari: number) => void;
   onDeleteIssue?: (id: string) => void;
   userRole: string;
+  resetKey?: number;
 }
 
 export default function IssueView({ 
@@ -24,10 +25,16 @@ export default function IssueView({
   onNewJobCard,
   onCompleteJobCard,
   onDeleteIssue,
-  userRole
+  userRole,
+  resetKey = 0,
 }: IssueViewProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    setSelectedIssueId(null);
+    setIsOpen(false);
+  }, [resetKey]);
   const [activeZariModalJc, setActiveZariModalJc] = useState<any | null>(null);
   const [modalWastage, setModalWastage] = useState<number | "">(0);
   const [modalLeftover, setModalLeftover] = useState<number | "">(0);

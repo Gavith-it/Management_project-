@@ -265,6 +265,37 @@ export default function Home() {
 
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
+  const syncData = async () => {
+    const dbSuppliers = await getSuppliers(suppliers);
+    setSuppliers(dbSuppliers);
+
+    const dbPurchases = await getPurchases(purchases);
+    setPurchases(dbPurchases);
+
+    const dbIssues = await getMaterialIssues(materialIssues);
+    setMaterialIssues(dbIssues);
+
+    const dbJobCards = await getJobCards(jobCards);
+    setJobCards(dbJobCards);
+
+    const dbWarpingLogs = await getWarpingLogs(warpingLogs);
+    setWarpingLogs(dbWarpingLogs);
+
+    const dbReconciliations = await getReconciliations(reconciliations);
+    setReconciliations(dbReconciliations);
+  };
+
+  const [viewResetKeys, setViewResetKeys] = useState<Record<string, number>>({});
+
+  const handleViewChange = (view: ViewType) => {
+    setActiveView(view);
+    setViewResetKeys((prev) => ({
+      ...prev,
+      [view]: (prev[view] || 0) + 1,
+    }));
+    syncData();
+  };
+
   // Sync auth state and purchases on mount
   useEffect(() => {
     const authStatus = localStorage.getItem("maradi_authenticated") || sessionStorage.getItem("maradi_authenticated");
@@ -276,26 +307,6 @@ export default function Home() {
       setUserName(savedName);
     }
     setHasCheckedAuth(true);
-
-    async function syncData() {
-      const dbSuppliers = await getSuppliers(suppliers);
-      setSuppliers(dbSuppliers);
-
-      const dbPurchases = await getPurchases(purchases);
-      setPurchases(dbPurchases);
-
-      const dbIssues = await getMaterialIssues(materialIssues);
-      setMaterialIssues(dbIssues);
-
-      const dbJobCards = await getJobCards(jobCards);
-      setJobCards(dbJobCards);
-
-      const dbWarpingLogs = await getWarpingLogs(warpingLogs);
-      setWarpingLogs(dbWarpingLogs);
-
-      const dbReconciliations = await getReconciliations(reconciliations);
-      setReconciliations(dbReconciliations);
-    }
     syncData();
   }, []);
 
@@ -523,7 +534,7 @@ export default function Home() {
       {/* SIDEBAR PANEL */}
       <Sidebar
         activeView={activeView}
-        onViewChange={(view) => setActiveView(view)}
+        onViewChange={handleViewChange}
         userRole={userRole}
         pendingCount={pendingCount}
         userName={userName}
@@ -562,6 +573,7 @@ export default function Home() {
             onDeletePurchase={handleDeletePurchase}
             onEditPurchase={handleOpenEditPurchase}
             userRole={userRole}
+            resetKey={viewResetKeys["purchases"] || 0}
           />
         )}
 
@@ -576,6 +588,7 @@ export default function Home() {
             onCompleteJobCard={handleCompleteJobCard}
             onDeleteIssue={handleDeleteMaterialIssue}
             userRole={userRole}
+            resetKey={viewResetKeys["issue"] || 0}
           />
         )}
 
@@ -623,7 +636,7 @@ export default function Home() {
       {/* BOTTOM NAV (MOBILE ONLY) */}
       <BottomNav
         activeView={activeView}
-        onViewChange={(view) => setActiveView(view)}
+        onViewChange={handleViewChange}
         userRole={userRole}
       />
 

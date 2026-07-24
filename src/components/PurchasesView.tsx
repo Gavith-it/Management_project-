@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PurchaseDetail from "./PurchaseDetail";
 
 interface Purchase {
@@ -27,6 +27,7 @@ interface PurchasesViewProps {
   onDeletePurchase?: (id: string) => void;
   onEditPurchase?: (purchase: Purchase) => void;
   userRole?: string;
+  resetKey?: number;
 }
 
 type TabFilter = "All" | "Pending" | "On hold" | "Recorded";
@@ -38,9 +39,16 @@ export default function PurchasesView({
   onDeletePurchase,
   onEditPurchase,
   userRole = "admin",
+  resetKey = 0,
 }: PurchasesViewProps) {
   const [activeTab, setActiveTab] = useState<TabFilter>("All");
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<string | null>(null);
+
+  // Reset detail view and filter tab to origin when resetKey changes
+  useEffect(() => {
+    setSelectedPurchaseId(null);
+    setActiveTab("All");
+  }, [resetKey]);
 
   // Get selected purchase details
   const selectedPurchase = purchases.find((p) => p.id === selectedPurchaseId);
