@@ -40,7 +40,7 @@ import JobCardsView from "@/components/JobCardsView";
 import WarpingView from "@/components/WarpingView";
 import ReconciliationView from "@/components/ReconciliationView";
 import SettingsView from "@/components/SettingsView";
-import LoginView from "@/components/LoginView";
+import LoginView, { ACCOUNTS_REGISTRY } from "@/components/LoginView";
 
 // Initial mock data as specified in the HTML
 const INITIAL_PURCHASES = [
@@ -245,6 +245,7 @@ export default function Home() {
   const [reconciliations, setReconciliations] = useLocalStorage<Reconciliation[]>("maradi_reconciliations_v1", INITIAL_RECONCILIATIONS);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userName, setUserName] = useState("Sharun");
   const [preselectedIssueId, setPreselectedIssueId] = useState<string | null>(null);
   const [shouldOpenJobCardDrawer, setShouldOpenJobCardDrawer] = useState(false);
 
@@ -268,9 +269,11 @@ export default function Home() {
   useEffect(() => {
     const authStatus = localStorage.getItem("maradi_authenticated") || sessionStorage.getItem("maradi_authenticated");
     const savedRole = localStorage.getItem("maradi_role") || sessionStorage.getItem("maradi_role") || "admin";
+    const savedName = localStorage.getItem("maradi_display_name") || sessionStorage.getItem("maradi_display_name") || "Sharun";
     if (authStatus === "true") {
       setIsAuthenticated(true);
       setUserRole(savedRole);
+      setUserName(savedName);
     }
     setHasCheckedAuth(true);
 
@@ -297,23 +300,21 @@ export default function Home() {
   }, []);
 
   const handleLogin = (username: string, rememberMe: boolean = true) => {
-    let resolvedRole = "admin";
-    const u = username.toLowerCase();
-    if (u === "cred2") {
-      resolvedRole = "purchases_manager";
-    } else if (u === "cred3") {
-      resolvedRole = "inventory_manager";
-    } else if (u === "cred4") {
-      resolvedRole = "warping_operator";
-    }
+    const uKey = username.toLowerCase();
+    const account = ACCOUNTS_REGISTRY[uKey];
+
+    const resolvedRole = account ? account.role : "admin";
+    const resolvedDisplayName = account ? account.displayName : username.split("@")[0];
 
     const storage = rememberMe ? localStorage : sessionStorage;
     storage.setItem("maradi_authenticated", "true");
     storage.setItem("maradi_role", resolvedRole);
     storage.setItem("maradi_username", username);
+    storage.setItem("maradi_display_name", resolvedDisplayName);
 
     setIsAuthenticated(true);
     setUserRole(resolvedRole);
+    setUserName(resolvedDisplayName);
 
     // Direct user to a sensible active view based on their role
     if (resolvedRole === "purchases_manager") {
@@ -525,6 +526,7 @@ export default function Home() {
         onViewChange={(view) => setActiveView(view)}
         userRole={userRole}
         pendingCount={pendingCount}
+        userName={userName}
         onLogout={handleLogout}
       />
 
@@ -540,7 +542,7 @@ export default function Home() {
         {/* ACTIVE VIEWS CONTROLLER */}
         {activeView === "dashboard" && (
           <DashboardView
-            userName="Sharun"
+            userName={userName}
             purchases={purchases}
             materialIssues={materialIssues}
             jobCards={jobCards}

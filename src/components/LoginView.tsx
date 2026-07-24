@@ -6,6 +6,28 @@ interface LoginViewProps {
   onLogin: (username: string, rememberMe: boolean) => void;
 }
 
+export interface UserAccount {
+  username: string;
+  password: string;
+  role: string;
+  displayName: string;
+}
+
+export const ACCOUNTS_REGISTRY: Record<string, UserAccount> = {
+  "sharun@admin": { username: "Sharun@admin", password: "Sharun#Admin2026!Sec", role: "admin", displayName: "Sharun" },
+  "manoj@admin": { username: "Manoj@admin", password: "Manoj#Admin2026!Sec", role: "admin", displayName: "Manoj" },
+  "aman@admin": { username: "Aman@admin", password: "Aman#Admin2026!Sec", role: "admin", displayName: "Aman" },
+  "datta@purchase": { username: "Datta@purchase", password: "Datta#Pur2026!Sec", role: "purchases_manager", displayName: "Datta" },
+  "deepika@issue": { username: "Deepika@issue", password: "Deepika#Iss2026!Sec", role: "inventory_manager", displayName: "Deepika" },
+  "sharun@job": { username: "Sharun@job", password: "Sharun#Job2026!Sec", role: "admin", displayName: "Sharun" },
+  "zari@zari": { username: "Zari@zari", password: "Zari#Warp2026!Sec", role: "warping_operator", displayName: "Zari Operator" },
+  // Additional demo accounts
+  "admin": { username: "admin", password: "admin123", role: "admin", displayName: "Admin" },
+  "cred2": { username: "cred2", password: "pass2", role: "purchases_manager", displayName: "Purchases Manager" },
+  "cred3": { username: "cred3", password: "pass3", role: "inventory_manager", displayName: "Inventory Manager" },
+  "cred4": { username: "cred4", password: "pass4", role: "warping_operator", displayName: "Warping Operator" },
+};
+
 export default function LoginView({ onLogin }: LoginViewProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -61,26 +83,17 @@ export default function LoginView({ onLogin }: LoginViewProps) {
       localStorage.setItem("maradi_remember_me", "false");
     }
 
-    // Simulate authenticating for 4 user credential roles
+    // Authenticate against ACCOUNTS_REGISTRY
     setTimeout(() => {
-      const u = trimmedUser.toLowerCase();
-      const p = trimmedPass;
+      const uKey = trimmedUser.toLowerCase();
+      const account = ACCOUNTS_REGISTRY[uKey];
 
-      if (u === "admin" && p === "admin123") {
+      if (account && account.password === trimmedPass) {
         setLoading(false);
-        onLogin("admin", rememberMe);
-      } else if (u === "cred2" && p === "pass2") {
-        setLoading(false);
-        onLogin("cred2", rememberMe);
-      } else if (u === "cred3" && p === "pass3") {
-        setLoading(false);
-        onLogin("cred3", rememberMe);
-      } else if (u === "cred4" && p === "pass4") {
-        setLoading(false);
-        onLogin("cred4", rememberMe);
+        onLogin(account.username, rememberMe);
       } else {
         setLoading(false);
-        setErrorMsg("Invalid username or password. Available: admin/admin123, cred2/pass2, cred3/pass3, cred4/pass4");
+        setErrorMsg("Invalid username or password. Please check your credentials.");
       }
     }, 800);
   };
@@ -97,10 +110,20 @@ export default function LoginView({ onLogin }: LoginViewProps) {
 
     setTimeout(() => {
       setForgotLoading(false);
-      setForgotMsg({
-        type: "success",
-        text: `Password reset instructions sent for "${forgotInput.trim()}". For demo accounts, use password "admin123" for admin or "pass2"/"pass3"/"pass4" for managers.`,
-      });
+      const uKey = forgotInput.trim().toLowerCase();
+      const found = ACCOUNTS_REGISTRY[uKey];
+
+      if (found) {
+        setForgotMsg({
+          type: "success",
+          text: `Password recovery details for "${found.username}": Role: ${found.role.replace("_", " ")} | Password hint: ${found.password.substring(0, 4)}...`,
+        });
+      } else {
+        setForgotMsg({
+          type: "success",
+          text: `Password reset instructions sent for "${forgotInput.trim()}". Please check your registered account details.`,
+        });
+      }
     }, 800);
   };
 

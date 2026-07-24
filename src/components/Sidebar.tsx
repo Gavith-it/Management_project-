@@ -7,6 +7,7 @@ interface SidebarProps {
   onViewChange: (view: any) => void;
   userRole: string;
   pendingCount: number;
+  userName?: string;
   onLogout?: () => void;
 }
 
@@ -15,6 +16,7 @@ export default function Sidebar({
   onViewChange,
   userRole,
   pendingCount,
+  userName = "Sharun",
   onLogout,
 }: SidebarProps) {
   const showPurchases = userRole === "admin" || userRole === "purchases_manager";
@@ -148,11 +150,11 @@ export default function Sidebar({
       >
         <div className="user-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div className="user-av">S</div>
+            <div className="user-av">{userName.charAt(0).toUpperCase()}</div>
             <div>
-              <div className="user-name">Sharun</div>
+              <div className="user-name">{userName}</div>
               <div className="user-role" style={{ textTransform: "capitalize" }}>
-                {userRole}
+                {userRole.replace("_", " ")}
               </div>
             </div>
           </div>
