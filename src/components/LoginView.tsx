@@ -286,7 +286,7 @@ export default function LoginView({ onLogin }: LoginViewProps) {
               <input
                 id="passwordInput"
                 name="password"
-                autoComplete="current-password"
+                autoComplete="off"
                 type={showPassword ? "text" : "password"}
                 className="df-input"
                 placeholder="Password"

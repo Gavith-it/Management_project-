@@ -240,7 +240,7 @@ export async function savePurchase(purchase: Purchase): Promise<boolean> {
       created_at: new Date(purchase.date).toISOString(),
     };
 
-    const { error: purchaseError } = await supabase.from("purchases").insert(dbPurchase);
+    const { error: purchaseError } = await supabase.from("purchases").upsert(dbPurchase);
 
     if (purchaseError) {
       console.error("Failed to save purchase:", purchaseError.message);
@@ -427,7 +427,7 @@ export async function saveMaterialIssue(issue: MaterialIssue): Promise<boolean> 
       status: issue.status,
       remarks: issue.remarks,
     };
-    const { error } = await supabase.from("material_issues").insert(dbIssue);
+    const { error } = await supabase.from("material_issues").upsert(dbIssue);
     if (error) {
       console.error("Failed to save material_issue:", error.message);
       return false;
@@ -518,7 +518,7 @@ export async function saveWarpingLog(log: WarpingLog): Promise<boolean> {
       wastage_g: log.wastage || 0,
       operator_name: log.operatorName,
     };
-    const { error } = await supabase.from("warping_logs").insert(dbLog);
+    const { error } = await supabase.from("warping_logs").upsert(dbLog);
     if (error) {
       console.error("Failed to save warping_log:", error.message);
       return false;
